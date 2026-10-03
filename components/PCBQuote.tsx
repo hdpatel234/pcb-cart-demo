@@ -1,0 +1,1356 @@
+import React, { useState, useEffect, useRef } from "react";
+import QuantitySelectorPopover from "./QuantitySelectorPopover";
+import {
+    Menu,
+    Search,
+    ShoppingCart,
+    CircuitBoard,
+    Cpu,
+    Layers,
+    Thermometer,
+    Settings,
+    Printer,
+    Wrench,
+    Upload,
+    Info,
+    ChevronDown,
+    ChevronUp,
+    Lock,
+    Edit2,
+    Pencil,
+    Check,
+    Eye,
+    RefreshCw,
+    FileText,
+    CheckCircle2,
+    AlertTriangle,
+    EyeOff
+} from "lucide-react";
+import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import JSZip from "jszip";
+import { processGerberFiles, ProcessedGerberProject } from "@/lib/gerber-engine";
+import { mapPCBAnalysisToQuoteOptions } from "@/lib/pcb-quote-integration/extractionMapper";
+import { GerberViewer } from "@/components/gerber-viewer";
+import { PanelModal } from "@/components/PanelModal";
+
+// Helpers
+const Pill = ({
+    active,
+    children,
+    onClick,
+    activeColor = "blue",
+    badge,
+    disabled
+}: {
+    active: boolean;
+    children: React.ReactNode;
+    onClick: () => void;
+    activeColor?: "blue" | "orange" | "green";
+    badge?: string;
+    disabled?: boolean;
+}) => {
+    const baseClasses = "px-4 py-1.5 rounded text-sm font-medium transition-all relative border";
+    const disabledClasses = "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed";
+
+    const colors = {
+        blue: "border-primary bg-primary/10 text-primary",
+        orange: "border-[#f5821f] bg-[#fff5eb] text-[#f5821f]",
+        green: "border-[#52c41a] bg-[#f6ffed] text-[#52c41a]"
+    };
+
+    const inactiveClasses = "border-gray-300 bg-white text-gray-700 hover:border-primary/50 hover:text-primary cursor-pointer";
+
+    return (
+        <button
+            type="button"
+            disabled={disabled}
+            onClick={disabled ? undefined : onClick}
+            className={`${baseClasses} ${disabled ? disabledClasses : (active ? colors[activeColor] : inactiveClasses)}`}
+        >
+            {children}
+            {badge && (
+                <span className="absolute -top-2 -right-2 bg-[#52c41a] text-white text-[10px] px-1.5 py-0.5 rounded">
+                    {badge}
+                </span>
+            )}
+        </button>
+    );
+};
+
+const ConfigRow = ({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: string }) => (
+    <div className="flex flex-col sm:flex-row py-4 border-b border-gray-100 gap-4 sm:gap-0">
+        <div className="w-full sm:w-[180px] shrink-0 flex items-center gap-1.5 text-[14px] text-gray-600 font-medium">
+            {label}
+            {tooltip && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-gray-800 text-white border-none">
+                        <p className="max-w-[200px] text-xs">{tooltip}</p>
+                    </TooltipContent>
+                </Tooltip>
+            )}
+        </div>
+        <div className="flex flex-wrap gap-2.5 flex-1 items-center">
+            {children}
+        </div>
+    </div>
+);
+
+const ColorCircle = ({ color, active, onClick, checkColor = "white" }: any) => (
+    <button
+        onClick={onClick}
+        className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all cursor-pointer ${active ? "border-primary shadow-sm" : "border-transparent shadow-sm hover:scale-110"
+            }`}
+        style={{ backgroundColor: color }}
+    >
+        {active && <Check className="w-4 h-4" style={{ color: checkColor }} />}
+    </button>
+);
+
+// Gerber extension patterns for validation
+const GERBER_PATTERNS = {
+    topCopper: /\.(gtl|g1|top|cmp)$/i,
+    bottomCopper: /\.(gbl|g2|bot|sol)$/i,
+    topSolderMask: /\.(gts|tsm|stp)$/i,
+    bottomSolderMask: /\.(gbs|bsm|sbs)$/i,
+    topSilkscreen: /\.(gto|tsk|plc|sst)$/i,
+    bottomSilkscreen: /\.(gbo|bsk|pls|ssb)$/i,
+    drills: /\.(drl|txt|xln|tap|drd)$/i,
+    outline: /\.(gml|gko|outline|dim|gbr)$/i
+};
+
+// Interactive 2D PCB Preview component (HD Crisp Canvas)
+const PCBPreviewCanvas = ({
+    pcbColor,
+    activeLayers
+}: {
+    pcbColor: string;
+    activeLayers: {
+        outline: boolean;
+        topCopper: boolean;
+        bottomCopper: boolean;
+        solderMask: boolean;
+        silkscreen: boolean;
+        drills: boolean;
+    };
+}) => {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        // Support HiDPI / Retina displays for HD sharp rendering
+        const dpr = window.devicePixelRatio || 2;
+        const displayWidth = 600;
+        const displayHeight = 380;
+
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = `${displayHeight}px`;
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        // Clear canvas
+        ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+        // Draw PCB Board base
+        if (activeLayers.outline) {
+            ctx.fillStyle = pcbColor;
+            ctx.beginPath();
+            ctx.roundRect(15, 15, displayWidth - 30, displayHeight - 30, 16);
+            ctx.fill();
+
+            // Draw gold/solder mask border outline
+            ctx.strokeStyle = "#d4af37"; // gold outline
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        } else {
+            // Draw background if outline is disabled
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(0, 0, displayWidth, displayHeight);
+        }
+
+        // Draw Solder Mask grid texture if enabled
+        if (activeLayers.solderMask && activeLayers.outline) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+            for (let x = 30; x < displayWidth - 30; x += 20) {
+                for (let y = 30; y < displayHeight - 30; y += 20) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // Draw Bottom Copper Layer (cyan/blue traces underneath)
+        if (activeLayers.bottomCopper) {
+            ctx.strokeStyle = "rgba(0, 191, 255, 0.4)";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+
+            // Bottom Trace 1
+            ctx.moveTo(50, 100);
+            ctx.lineTo(140, 140);
+            ctx.lineTo(displayWidth / 2, displayHeight / 2 - 20);
+
+            // Bottom Trace 2
+            ctx.moveTo(displayWidth - 50, displayHeight - 100);
+            ctx.lineTo(displayWidth - 120, displayHeight - 140);
+            ctx.lineTo(displayWidth / 2 + 20, displayHeight / 2 + 20);
+
+            ctx.stroke();
+        }
+
+        // Draw Top Copper Layer (gold traces and pads)
+        if (activeLayers.topCopper) {
+            ctx.fillStyle = "#e5c158"; // gold color
+            ctx.strokeStyle = "#e5c158";
+
+            // IC 1 (Microcontroller pads in center)
+            const icX = displayWidth / 2;
+            const icY = displayHeight / 2;
+            ctx.fillRect(icX - 35, icY - 35, 70, 70);
+
+            // Draw pins
+            for (let i = -25; i <= 25; i += 12) {
+                ctx.fillRect(icX + i - 3, icY - 48, 6, 10); // top pins
+                ctx.fillRect(icX + i - 3, icY + 38, 6, 10); // bottom pins
+                ctx.fillRect(icX - 48, icY + i - 3, 10, 6); // left pins
+                ctx.fillRect(icX + 38, icY + i - 3, 10, 6); // right pins
+            }
+
+            // Draw copper traces (Top Copper)
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+
+            // Trace 1
+            ctx.moveTo(50, 60);
+            ctx.lineTo(130, 60);
+            ctx.lineTo(icX - 25, icY - 45);
+
+            // Trace 2
+            ctx.moveTo(50, 90);
+            ctx.lineTo(90, 90);
+            ctx.lineTo(90, 160);
+            ctx.lineTo(icX - 45, icY);
+
+            // Trace 3
+            ctx.moveTo(displayWidth - 50, 60);
+            ctx.lineTo(displayWidth - 130, 60);
+            ctx.lineTo(icX + 25, icY - 45);
+
+            // Trace 4 (Bottom routing)
+            ctx.moveTo(70, displayHeight - 70);
+            ctx.lineTo(160, displayHeight - 70);
+            ctx.lineTo(icX - 15, icY + 35);
+
+            ctx.stroke();
+
+            // Draw pads at trace ends
+            ctx.beginPath();
+            ctx.arc(50, 60, 4, 0, Math.PI * 2);
+            ctx.arc(50, 90, 4, 0, Math.PI * 2);
+            ctx.arc(displayWidth - 50, 60, 4, 0, Math.PI * 2);
+            ctx.arc(70, displayHeight - 70, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw Drill Holes (Drills)
+        if (activeLayers.drills) {
+            ctx.fillStyle = "#0f172a"; // dark drill hole color
+            const drillsList = [
+                [35, 35], [displayWidth - 35, 35],
+                [35, displayHeight - 35], [displayWidth - 35, displayHeight - 35],
+                [50, 60], [50, 90], [displayWidth - 50, 60], [70, displayHeight - 70]
+            ];
+            drillsList.forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Add silver annular ring around drill
+                ctx.strokeStyle = "#94a3b8";
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+        }
+
+        // Draw Silkscreen (Text & Component Outlines)
+        if (activeLayers.silkscreen) {
+            const isDarkText = pcbColor === "#ffffff" || pcbColor === "#fadb14";
+            ctx.fillStyle = isDarkText ? "#0f172a" : "#ffffff";
+            ctx.strokeStyle = isDarkText ? "#0f172a" : "#ffffff";
+            ctx.lineWidth = 1.4;
+
+            // Draw IC silkscreen outlines
+            const icX = displayWidth / 2;
+            const icY = displayHeight / 2;
+            ctx.strokeRect(icX - 42, icY - 42, 84, 84);
+
+            // Draw pin 1 indicator dot
+            ctx.beginPath();
+            ctx.arc(icX - 35, icY - 35, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Text labels
+            ctx.font = "bold 10px Inter, system-ui, sans-serif";
+            ctx.fillText("U1 (MCU)", icX - 22, icY - 2);
+            ctx.fillText("R1", 55, 52);
+            ctx.fillText("R2", 55, 82);
+            ctx.fillText("C1", displayWidth - 65, 52);
+            ctx.fillText("J1", 55, displayHeight - 58);
+
+            // Draw component outline boxes
+            ctx.strokeRect(42, 52, 16, 16);
+            ctx.strokeRect(42, 82, 16, 16);
+            ctx.strokeRect(displayWidth - 58, 52, 16, 16);
+
+            // Large logo/label
+            ctx.font = "bold 12px Inter, system-ui, sans-serif";
+            ctx.fillText("MEGABYTE CIRCUITS", icX - 65, icY - 95);
+
+            ctx.beginPath();
+            ctx.moveTo(icX - 65, icY - 90);
+            ctx.lineTo(icX + 65, icY - 90);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+
+    }, [pcbColor, activeLayers]);
+
+    return (
+        <div className="relative border border-gray-200 rounded-lg overflow-hidden bg-[#1e293b] flex items-center justify-center p-4 min-h-[340px]">
+            <canvas
+                ref={canvasRef}
+                className="max-w-full h-auto object-contain rounded shadow-xl"
+            />
+            <div className="absolute bottom-2 right-2 bg-gray-900/90 backdrop-blur text-[10px] font-semibold text-emerald-400 px-2.5 py-1 rounded-md border border-emerald-500/20 shadow-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                HD Crisp 2D Canvas
+            </div>
+        </div>
+    );
+};
+
+export default function PCBQuote() {
+    const mainSiteUrl = (process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com").replace(/\/$/, "");
+
+    // State
+    const [activeTab, setActiveTab] = useState("standard");
+    const [isDragging, setIsDragging] = useState(false);
+    const [specsOpen, setSpecsOpen] = useState(true);
+    const [highSpecsOpen, setHighSpecsOpen] = useState(true);
+    const [advancedOpen, setAdvancedOpen] = useState(true);
+    const [showRemarkTextarea, setShowRemarkTextarea] = useState(false);
+
+    // Dimension States bound to inputs
+    const [pcbWidth, setPcbWidth] = useState("100");
+    const [pcbHeight, setPcbHeight] = useState("100");
+    const [pcbUnit, setPcbUnit] = useState("mm");
+    const [pcbRemark, setPcbRemark] = useState("");
+    const [detectionAlert, setDetectionAlert] = useState<string | null>(null);
+
+    // File Upload & Gerber Engine State
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [isValidating, setIsValidating] = useState(false);
+    const [loadingProgress, setLoadingProgress] = useState({ stage: "", percent: 0 });
+    const [isGerberValidated, setIsGerberValidated] = useState(false);
+    const [processedProject, setProcessedProject] = useState<ProcessedGerberProject | null>(null);
+    const [fieldSources, setFieldSources] = useState<Record<string, "detected" | "user-selected">>({
+        layers: "user-selected",
+        dimensions: "user-selected"
+    });
+    const [detectedLayers, setDetectedLayers] = useState<{ name: string; status: "detected" | "not_detected"; filename?: string }[]>([]);
+    const [previewActiveTab, setPreviewActiveTab] = useState<"layout" | "schematic">("layout");
+
+    // Interactive Canvas Layer Toggles
+    const [activeLayers, setActiveLayers] = useState({
+        outline: true,
+        topCopper: true,
+        bottomCopper: true,
+        solderMask: true,
+        silkscreen: true,
+        drills: true
+    });
+
+    const handleFileValidation = async (file: File) => {
+        setUploadError(null);
+        setUploadedFile(null);
+        setIsGerberValidated(false);
+        setProcessedProject(null);
+        setDetectedLayers([]);
+        setDetectionAlert(null);
+
+        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+        if (fileExtension !== 'zip' && fileExtension !== 'rar') {
+            setUploadError("Invalid file type. Please upload a Gerber file in .zip or .rar format.");
+            return false;
+        }
+
+        const maxSizeBytes = 100 * 1024 * 1024; // 100 MB
+        if (file.size > maxSizeBytes) {
+            setUploadError("File is too large. Maximum size allowed is 100 MB.");
+            return false;
+        }
+
+        setIsValidating(true);
+
+        try {
+            const project = await processGerberFiles(file, (stage, percent) => {
+                setLoadingProgress({ stage, percent });
+            });
+
+            setProcessedProject(project);
+            setIsGerberValidated(true);
+            setUploadedFile(file);
+
+            // Auto-select quotation options based on extracted PCB analysis
+            const autoSelected = mapPCBAnalysisToQuoteOptions(project.analysis);
+            setLayers(autoSelected.layers);
+            setPcbWidth(autoSelected.width);
+            setPcbHeight(autoSelected.height);
+            setPcbUnit("mm");
+
+            setFieldSources({
+                layers: "detected",
+                dimensions: "detected"
+            });
+
+            setDetectionAlert(
+                `✓ Gerber Analysis Successful! Auto-detected ${project.analysis.layers.copper} Layer PCB, Dimensions: ${project.analysis.dimensions.width} x ${project.analysis.dimensions.height} mm.`
+            );
+
+            setDetectedLayers(
+                project.analysis.detectedFiles.map((f) => ({
+                    name: f.name,
+                    status: "detected" as const,
+                    filename: f.name
+                }))
+            );
+            setIsValidating(false);
+            return true;
+        } catch (err: any) {
+            setUploadError(err.message || "Failed to process Gerber archive.");
+            setIsValidating(false);
+            return false;
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleFileValidation(e.target.files[0]);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileValidation(e.dataTransfer.files[0]);
+        }
+    };
+
+    // Form State
+    const [baseMaterial, setBaseMaterial] = useState("FR-4");
+    const [substrateType, setSubstrateType] = useState("25µm dielectric thickness");
+    const [layers, setLayers] = useState("2");
+    const [qty, setQty] = useState("5");
+    const [productType, setProductType] = useState("Industrial");
+    const [differentDesign, setDifferentDesign] = useState("1");
+    const [deliveryFormat, setDeliveryFormat] = useState("Single PCB");
+    const [panelModalOpen, setPanelModalOpen] = useState(false);
+    const [panelColumn, setPanelColumn] = useState("");
+    const [panelRow, setPanelRow] = useState("");
+    const [thickness, setThickness] = useState("1.6mm");
+    const [pcbColor, setPcbColor] = useState("#52c41a"); // green hex
+    const [silkscreen, setSilkscreen] = useState("White");
+    const [materialType, setMaterialType] = useState("FR4-TG135");
+    const [surfaceFinish, setSurfaceFinish] = useState("HASL(Leaded)");
+    const [copperWeight, setCopperWeight] = useState("1 oz");
+    const [viaCovering, setViaCovering] = useState("Not Specified");
+    const [viaPlating, setViaPlating] = useState("Not Specified");
+    const [minHole, setMinHole] = useState("0.3mm");
+    const [tolerance, setTolerance] = useState("Regular");
+    const [confirmFile, setConfirmFile] = useState("No");
+    const [markOnPcb, setMarkOnPcb] = useState("Remove Mark");
+    const [elecTest, setElecTest] = useState("Flying Probe Fully Test");
+    const [goldFingers, setGoldFingers] = useState("No");
+    const [castellated, setCastellated] = useState("No");
+    const [edgePlating, setEdgePlating] = useState("No");
+    const [blindSlots, setBlindSlots] = useState("No");
+    const [ulMarking, setUlMarking] = useState("No");
+    const [humidity, setHumidity] = useState("No");
+
+    const [assemblyOn, setAssemblyOn] = useState(false);
+    const [stencilOn, setStencilOn] = useState(false);
+    const [buildTime, setBuildTime] = useState("2 days");
+
+    // Constants
+    const tabs = [
+        { id: "standard", label: "Standard PCB/PCBA", icon: CircuitBoard },
+        { id: "advanced", label: "Advanced PCB/PCBA", icon: Cpu },
+        { id: "stencil", label: "SMT Stencil", icon: Layers },
+        { id: "flex", label: "Flex Heater", icon: Thermometer },
+        { id: "mechatronic", label: "Mechatronic Parts", icon: Settings },
+        { id: "3d", label: "3D Printing", icon: Printer },
+        { id: "cnc", label: "CNC Machining", icon: Wrench },
+    ];
+
+    return (
+        <div className="min-h-screen bg-[#f0f2f5] font-sans">
+            {/* Header */}
+            <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+                <div className="max-w-[1400px] mx-auto px-4 h-20 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <a href={process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com"} className="flex items-center gap-2 group">
+                            <img src="/images/logo.png" alt="Megabyte Circuit Logo" className="h-18 w-auto object-contain" />
+                        </a>
+                    </div>
+
+                    <div className="hidden lg:flex flex-1 max-w-2xl px-8">
+                        <div className="relative w-full">
+                            <input
+                                type="text"
+                                placeholder="Search..."
+                                className="w-full h-10 pl-10 pr-4 rounded-full border border-gray-300 bg-gray-50 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                            />
+                            <Search className="w-5 h-5 text-gray-400 absolute left-3.5 top-2.5" />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                        <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600 hover:text-primary cursor-pointer">
+                            <span>USD</span>
+                            <ChevronDown className="w-4 h-4" />
+                        </div>
+                        <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
+                            <ShoppingCart className="w-5 h-5 text-gray-700" />
+                            <span className="absolute top-0 right-0 bg-[#f5821f] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center">
+                                0
+                            </span>
+                        </button>
+                        <button className="text-sm font-medium text-gray-700 hover:text-primary transition-colors">
+                            Sign In
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+
+            {/* Main Content */}
+            <main className="max-w-[1400px] mx-auto px-4 py-6">
+                <div className="flex flex-col lg:flex-row gap-6 items-start">
+
+                    {/* Left Column - Quote Config */}
+                    <div className="flex-1 space-y-6">
+                        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-lg p-6">
+
+                            {/* Card Header */}
+                            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                <h1 className="text-lg font-bold text-gray-900">Online PCB Quote</h1>
+                                <div className="flex items-center gap-4 text-sm">
+                                    <a href="#" className="text-primary hover:underline">Instructions For Ordering &gt;</a>
+                                    <a href="#" className="text-primary hover:underline">Upload History &gt;</a>
+                                </div>
+                            </div>
+
+                            {/* Upload Zone */}
+                            <div
+                                className={`relative border-2 border-dashed rounded-lg p-10 text-center transition-all duration-300 ${isDragging ? "border-primary bg-primary/5 scale-[1.01]" : "border-gray-300 hover:border-primary/50"
+                                    }`}
+                                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                onDragLeave={() => setIsDragging(false)}
+                                onDrop={handleDrop}
+                            >
+                                <input
+                                    type="file"
+                                    id="gerber-upload"
+                                    accept=".zip,.rar"
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                />
+
+                                {isValidating ? (
+                                    <div className="flex flex-col items-center justify-center space-y-3 py-4">
+                                        <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+                                        <p className="text-sm font-semibold text-gray-700">Validating & extracting Gerber files...</p>
+                                    </div>
+                                ) : uploadedFile ? (
+                                    <div className="flex flex-col items-center justify-center space-y-3">
+                                        <div className="w-12 h-12 rounded-full bg-green-50 border border-green-200 flex items-center justify-center text-green-500 animate-pulse">
+                                            <CheckCircle2 className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-900 text-base flex items-center gap-1.5 justify-center">
+                                                {uploadedFile.name}
+                                                <span className="text-[10px] bg-green-100 text-green-800 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                    Verified
+                                                </span>
+                                            </p>
+                                            <p className="text-sm text-gray-500">{(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setUploadedFile(null);
+                                                setIsGerberValidated(false);
+                                                setDetectedLayers([]);
+                                                setDetectionAlert(null);
+                                            }}
+                                            className="px-4 py-1.5 border border-red-200 text-red-500 rounded text-sm font-medium hover:bg-red-50 transition-colors cursor-pointer"
+                                        >
+                                            Remove File
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => document.getElementById("gerber-upload")?.click()}
+                                            className="bg-primary hover:bg-secondary text-white px-8 py-3.5 rounded-md font-medium inline-flex items-center gap-2 shadow-sm transition-colors text-base cursor-pointer"
+                                        >
+                                            <Upload className="w-5 h-5" />
+                                            Add gerber file
+                                        </button>
+                                        <p className="mt-4 text-sm text-gray-500">
+                                            Only accept zip or rar, Max 100 MB
+                                        </p>
+                                    </>
+                                )}
+
+                                {uploadError && (
+                                    <div className="mt-3">
+                                        <p className="text-sm font-medium text-red-500 bg-red-50 border border-red-100 rounded-md py-2 px-3 inline-block">
+                                            {uploadError}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {detectionAlert && (
+                                    <div className="mt-3 animate-bounce">
+                                        <p className="text-sm font-semibold text-green-600 bg-green-50 border border-green-200 rounded-md py-2 px-4 inline-block shadow-sm">
+                                            {detectionAlert}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                                    <Lock className="w-3.5 h-3.5" />
+                                    <span>All uploads are secure and confidential.</span>
+                                </div>
+                            </div>
+
+                            {/* Gerber File Review & Full Interactive 2D Gerber Viewer Package */}
+                            {isGerberValidated && processedProject && (
+                                <div className="mt-6">
+                                    <GerberViewer
+                                        layers={processedProject.layers}
+                                        analysis={processedProject.analysis}
+                                        drillData={processedProject.drillData}
+                                        validation={processedProject.validation}
+                                        solderMaskColor={
+                                            pcbColor === "#52c41a" ? "green" :
+                                                pcbColor === "#722ed1" ? "purple" :
+                                                    pcbColor === "#f5222d" ? "red" :
+                                                        pcbColor === "#fadb14" ? "yellow" :
+                                                            pcbColor === "#1677ff" ? "blue" :
+                                                                pcbColor === "#ffffff" ? "white" : "black"
+                                        }
+                                        silkscreenColor={silkscreen}
+                                        onReupload={() => {
+                                            setUploadedFile(null);
+                                            setIsGerberValidated(false);
+                                            setProcessedProject(null);
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+
+                            <div className="mt-8 space-y-1">
+                                {/* Config Rows */}
+                                <ConfigRow label="Base Material" tooltip="Choose the material for your board. FR-4 is standard.">
+                                    {["FR-4", "Flex", "Aluminum", "Copper Core", "Rogers", "PTFE", "Teflon"].map(m => (
+                                        <Pill
+                                            key={m}
+                                            active={baseMaterial === m}
+                                            onClick={() => {
+                                                setBaseMaterial(m);
+                                                if (m === "Flex" && !["1", "2", "4"].includes(layers)) {
+                                                    setLayers("2");
+                                                }
+                                                if (["Rogers", "PTFE", "Teflon"].includes(m)) {
+                                                    setLayers("2");
+                                                }
+                                            }}
+                                        >
+                                            {m}
+                                        </Pill>
+                                    ))}
+                                </ConfigRow>
+
+                                {baseMaterial === "Flex" && (
+                                    <ConfigRow label="Substrate Type" tooltip="Thickness of dielectric layer.">
+                                        {["25µm dielectric thickness", "50µm dielectric thickness", "Transparent"].map(sub => {
+                                            const isDisabled = layers === "4" && (sub === "50µm dielectric thickness" || sub === "Transparent");
+                                            return (
+                                                <Pill
+                                                    key={sub}
+                                                    active={substrateType === sub}
+                                                    disabled={isDisabled}
+                                                    onClick={() => {
+                                                        setSubstrateType(sub);
+                                                        if (sub === "Transparent") {
+                                                            if (layers === "1") setThickness("0.14mm");
+                                                            else if (layers === "2") setThickness("0.24mm");
+                                                        } else if (sub === "50µm dielectric thickness") {
+                                                            if (layers === "1") setThickness("0.12mm");
+                                                            else if (layers === "2") setThickness("0.19mm");
+                                                        } else {
+                                                            if (layers === "1") setThickness("0.07mm");
+                                                            else if (layers === "2") setThickness("0.11mm");
+                                                        }
+                                                    }}
+                                                >
+                                                    {sub}
+                                                </Pill>
+                                            );
+                                        })}
+                                    </ConfigRow>
+                                )}
+
+                                <ConfigRow label="Layers" tooltip="Number of copper layers.">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {(baseMaterial === "Rogers" || baseMaterial === "PTFE" || baseMaterial === "Teflon" || baseMaterial === "PTFE Teflon"
+                                            ? ["2"]
+                                            : baseMaterial === "Flex"
+                                                ? ["1", "2", "4"]
+                                                : ["1", "2", "4", "6", "8", "10", "12", "14", "16", "More >"]
+                                        ).map(l => (
+                                            <Pill
+                                                key={l}
+                                                active={layers === l}
+                                                onClick={() => {
+                                                    setLayers(l);
+                                                    if (baseMaterial === "Flex") {
+                                                        if (l === "4") {
+                                                            setSubstrateType("25µm dielectric thickness");
+                                                            setThickness("0.2mm");
+                                                        } else if (l === "1") {
+                                                            if (substrateType === "Transparent") setThickness("0.14mm");
+                                                            else if (substrateType === "50µm dielectric thickness") setThickness("0.12mm");
+                                                            else setThickness("0.07mm");
+                                                        } else if (l === "2") {
+                                                            if (substrateType === "Transparent") setThickness("0.24mm");
+                                                            else if (substrateType === "50µm dielectric thickness") setThickness("0.19mm");
+                                                            else setThickness("0.11mm");
+                                                        }
+                                                    }
+                                                    setFieldSources(prev => ({ ...prev, layers: "user-selected" }));
+                                                }}
+                                                badge={l === "6" ? "High Precision PCB" : undefined}
+                                            >
+                                                {l}
+                                            </Pill>
+                                        ))}
+
+                                        {fieldSources.layers === "detected" ? (
+                                            <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded inline-flex items-center gap-1 shadow-xs ml-2">
+                                                <Check className="w-3.5 h-3.5" /> Auto detected from Gerber
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-amber-600 font-semibold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded inline-flex items-center gap-1 shadow-xs ml-2">
+                                                <Pencil className="w-3.5 h-3.5" /> Manually selected
+                                            </span>
+                                        )}
+                                    </div>
+                                </ConfigRow>
+
+                                <ConfigRow label="Dimensions" tooltip="Size of your single board or panel.">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min="0.1"
+                                            step="any"
+                                            value={pcbWidth}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "-" || e.key === "e" || e.key === "E") {
+                                                    e.preventDefault();
+                                                }
+                                            }}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === "" || parseFloat(val) >= 0) {
+                                                    setPcbWidth(val);
+                                                    setFieldSources(prev => ({ ...prev, dimensions: "user-selected" }));
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                let val = parseFloat(e.target.value);
+                                                if (isNaN(val) || val <= 0) val = 100;
+                                                setPcbWidth(val.toString());
+                                            }}
+                                            placeholder="100"
+                                            className="w-24 h-9 px-3 border border-gray-300 rounded text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                        />
+                                        <span className="text-gray-400">x</span>
+                                        <input
+                                            type="number"
+                                            min="0.1"
+                                            step="any"
+                                            value={pcbHeight}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "-" || e.key === "e" || e.key === "E") {
+                                                    e.preventDefault();
+                                                }
+                                            }}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === "" || parseFloat(val) >= 0) {
+                                                    setPcbHeight(val);
+                                                    setFieldSources(prev => ({ ...prev, dimensions: "user-selected" }));
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                let val = parseFloat(e.target.value);
+                                                if (isNaN(val) || val <= 0) val = 100;
+                                                setPcbHeight(val.toString());
+                                            }}
+                                            placeholder="100"
+                                            className="w-24 h-9 px-3 border border-gray-300 rounded text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                        />
+                                        <select
+                                            value={pcbUnit}
+                                            onChange={(e) => setPcbUnit(e.target.value)}
+                                            className="h-9 px-3 border border-gray-300 rounded text-sm focus:border-primary outline-none bg-white"
+                                        >
+                                            <option value="mm">mm</option>
+                                            <option value="inches">inches</option>
+                                        </select>
+
+                                        {fieldSources.dimensions === "detected" ? (
+                                            <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded inline-flex items-center gap-1 shadow-xs ml-2">
+                                                <Check className="w-3.5 h-3.5" /> Detected from board outline
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-amber-600 font-semibold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded inline-flex items-center gap-1 shadow-xs ml-2">
+                                                <Pencil className="w-3.5 h-3.5" /> Manually selected
+                                            </span>
+                                        )}
+                                    </div>
+                                </ConfigRow>
+
+                                <ConfigRow label="PCB Qty" tooltip="Total number of boards.">
+                                    <QuantitySelectorPopover
+                                        value={qty}
+                                        onChange={(val) => setQty(val)}
+                                        minQty={5}
+                                    />
+                                </ConfigRow>
+                            </div>
+
+                            {/* Accordion: PCB Specifications */}
+                            <div className="mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setSpecsOpen(!specsOpen)}
+                                    className="w-full flex items-center justify-between px-4 py-2 bg-[#f0f4f8] hover:bg-[#e4ebf3] transition-colors rounded-xs cursor-pointer select-none"
+                                >
+                                    <span className="text-sm font-bold text-gray-900">PCB Specifications</span>
+                                    {specsOpen ? <ChevronUp className="w-4 h-4 text-gray-600" /> : <ChevronDown className="w-4 h-4 text-gray-600" />}
+                                </button>
+
+                                {specsOpen && (
+                                    <div className="py-2 space-y-1">
+                                        <ConfigRow label="Different Design">
+                                            {["1", "2", "3", "4"].map(d => (
+                                                <Pill key={d} active={differentDesign === d} onClick={() => setDifferentDesign(d)}>{d}</Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        <ConfigRow label="Delivery Format">
+                                            {["Single PCB", "Panel by Customer", "Panel by Megabyte Circuit"].map(d => (
+                                                <Pill
+                                                    key={d}
+                                                    active={deliveryFormat === d}
+                                                    onClick={() => {
+                                                        setDeliveryFormat(d);
+                                                        if (d === "Panel by Megabyte Circuit") {
+                                                            setPanelModalOpen(true);
+                                                        }
+                                                    }}
+                                                >
+                                                    {d}
+                                                </Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        {deliveryFormat === "Panel by Customer" && (
+                                            <ConfigRow label="Panel Format">
+                                                <div className="flex flex-col space-y-1.5 w-full">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-sm font-semibold text-gray-700">Column :</span>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={panelColumn}
+                                                                onChange={(e) => setPanelColumn(e.target.value)}
+                                                                className="w-20 px-2.5 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-sm font-semibold text-gray-700">Row :</span>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={panelRow}
+                                                                onChange={(e) => setPanelRow(e.target.value)}
+                                                                className="w-20 px-2.5 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-red-500 font-medium">
+                                                        *You supply the panel data. If need us to panelize your board, pls select &quot;Panel by Megabyte Circuit&quot; option.
+                                                    </p>
+                                                </div>
+                                            </ConfigRow>
+                                        )}
+
+                                        <ConfigRow label="PCB Thickness">
+                                            {(baseMaterial === "Flex"
+                                                ? (substrateType === "Transparent"
+                                                    ? (layers === "1"
+                                                        ? [{ val: "0.14mm", disabled: false }]
+                                                        : [{ val: "0.24mm", disabled: false }]
+                                                      )
+                                                    : substrateType === "50µm dielectric thickness"
+                                                        ? (layers === "1"
+                                                            ? [{ val: "0.07mm", disabled: true }, { val: "0.12mm", disabled: false }]
+                                                            : layers === "4"
+                                                                ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
+                                                                : [{ val: "0.11mm", disabled: true }, { val: "0.12mm", disabled: true }, { val: "0.19mm", disabled: false }, { val: "0.2mm", disabled: false }]
+                                                          )
+                                                        : (layers === "1"
+                                                            ? [{ val: "0.07mm", disabled: false }, { val: "0.11mm", disabled: false }]
+                                                            : layers === "4"
+                                                                ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
+                                                                : [{ val: "0.11mm", disabled: false }, { val: "0.12mm", disabled: false }, { val: "0.2mm", disabled: false }]
+                                                          )
+                                                  )
+                                                : ["0.6mm", "0.8mm", "1.0mm", "1.2mm", "1.6mm", "2.0mm"].map(v => ({ val: v, disabled: false }))
+                                            ).map(item => (
+                                                <Pill key={item.val} disabled={item.disabled} active={thickness === item.val} onClick={() => setThickness(item.val)}>{item.val}</Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        {baseMaterial === "Flex" ? (
+                                            <ConfigRow label="Coverlay Color">
+                                                {substrateType === "Transparent" ? (
+                                                    <Pill active={true} onClick={() => {}}>Transparent</Pill>
+                                                ) : (
+                                                    <div className="flex gap-3">
+                                                        <ColorCircle color="#fadb14" active={pcbColor === "#fadb14"} onClick={() => setPcbColor("#fadb14")} />
+                                                        <ColorCircle color="#000000" active={pcbColor === "#000000"} onClick={() => setPcbColor("#000000")} />
+                                                        <ColorCircle color="#ffffff" active={pcbColor === "#ffffff"} onClick={() => setPcbColor("#ffffff")} />
+                                                    </div>
+                                                )}
+                                            </ConfigRow>
+                                        ) : (
+                                            <ConfigRow label="PCB Color">
+                                                <div className="flex gap-3">
+                                                    <ColorCircle color="#52c41a" active={pcbColor === "#52c41a"} onClick={() => setPcbColor("#52c41a")} />
+                                                    <ColorCircle color="#722ed1" active={pcbColor === "#722ed1"} onClick={() => setPcbColor("#722ed1")} />
+                                                    <ColorCircle color="#f5222d" active={pcbColor === "#f5222d"} onClick={() => setPcbColor("#f5222d")} />
+                                                    <ColorCircle color="#fadb14" active={pcbColor === "#fadb14"} onClick={() => setPcbColor("#fadb14")} />
+                                                    <ColorCircle color="#1677ff" active={pcbColor === "#1677ff"} onClick={() => setPcbColor("#1677ff")} />
+                                                    <ColorCircle color="#ffffff" active={pcbColor === "#ffffff"} onClick={() => setPcbColor("#ffffff")} />
+                                                    <ColorCircle color="#000000" active={pcbColor === "#000000"} onClick={() => setPcbColor("#000000")} />
+                                                </div>
+                                            </ConfigRow>
+                                        )}
+
+                                        <ConfigRow label="Silkscreen">
+                                            <Pill active={silkscreen === "White"} onClick={() => setSilkscreen("White")}>White</Pill>
+                                        </ConfigRow>
+
+                                        {baseMaterial === "Flex" && (
+                                            <ConfigRow label="Copper Type">
+                                                {[
+                                                    { val: "Electro-deposited", disabled: false },
+                                                    { val: "Rolled Annealed", disabled: true }
+                                                ].map(ct => (
+                                                    <Pill key={ct.val} disabled={ct.disabled} active={copperWeight === ct.val} onClick={() => setCopperWeight(ct.val)}>{ct.val}</Pill>
+                                                ))}
+                                            </ConfigRow>
+                                        )}
+
+                                        {baseMaterial !== "Flex" && (
+                                            <ConfigRow label="Material Type">
+                                                {(baseMaterial === "Rogers"
+                                                    ? ["RO4350B(Dk=3.48,Df=0.0037)"]
+                                                    : baseMaterial === "PTFE" || baseMaterial === "PTFE Teflon"
+                                                        ? [
+                                                            "ZYF300CA-P(Dk=3.0,Df=0.0018)",
+                                                            "ZYF300CA-C(Dk=2.94,Df=0.0016)",
+                                                            "ZYF265D(Dk=2.65,Df=0.0019)",
+                                                            "ZYF255DA(Dk=2.55,Df=0.0018)"
+                                                          ]
+                                                        : ["FR4 TG135", "KB6164 - TG135", "Nan Ya NP-140F", "S1141 TG140", "S1000H TG155"]
+                                                ).map(m => (
+                                                    <Pill key={m} active={materialType === m || (m === "FR4 TG135" && materialType === "FR4-TG135")} onClick={() => setMaterialType(m)}>{m}</Pill>
+                                                ))}
+                                            </ConfigRow>
+                                        )}
+
+                                        <ConfigRow label="Surface Finish">
+                                            {(baseMaterial === "Flex"
+                                                ? [{ val: "ENIG", disabled: false }]
+                                                : baseMaterial === "Rogers" || baseMaterial === "PTFE" || baseMaterial === "PTFE Teflon"
+                                                    ? [
+                                                        { val: "OSP", disabled: false },
+                                                        { val: "ENIG", disabled: false },
+                                                        { val: "HASL(with lead)", disabled: true },
+                                                        { val: "LeadFree HASL", disabled: true }
+                                                      ]
+                                                    : [
+                                                        { val: "OSP", disabled: false },
+                                                        { val: "HASL(Leaded)", disabled: false },
+                                                        { val: "LeadFree HASL", disabled: false },
+                                                        { val: "ENIG", disabled: false }
+                                                      ]
+                                            ).map(item => (
+                                                <Pill key={item.val} disabled={item.disabled} active={surfaceFinish === item.val} onClick={() => setSurfaceFinish(item.val)} activeColor="blue">{item.val}</Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        {(surfaceFinish === "ENIG" || baseMaterial === "Flex") && (
+                                            <ConfigRow label="Gold Thickness">
+                                                {["1 U\"", "2 U\""].map(gt => (
+                                                    <Pill key={gt} active={true} onClick={() => {}}>{gt}</Pill>
+                                                ))}
+                                            </ConfigRow>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Accordion: High-spec Options */}
+                            <div className="mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setHighSpecsOpen(!highSpecsOpen)}
+                                    className="w-full flex items-center justify-between px-4 py-2 bg-[#f0f4f8] hover:bg-[#e4ebf3] transition-colors rounded-xs cursor-pointer select-none"
+                                >
+                                    <span className="text-sm font-bold text-gray-900">High-spec Options</span>
+                                    {highSpecsOpen ? <ChevronUp className="w-4 h-4 text-gray-600" /> : <ChevronDown className="w-4 h-4 text-gray-600" />}
+                                </button>
+
+                                {highSpecsOpen && (
+                                    <div className="p-6 pt-2 space-y-1">
+                                        <ConfigRow label="Outer Copper Weight">
+                                            {["1oz", "2oz"].map(w => (
+                                                <Pill key={w} active={copperWeight === w} onClick={() => setCopperWeight(w)}>{w}</Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        <ConfigRow label="Via Covering">
+                                            {["Not Specified", "Tented", "Untented", "Plugged", "Epoxy Filled & Capped", "Copper paste Filled & Capped"].map(v => (
+                                                <Pill key={v} active={viaCovering === v} onClick={() => setViaCovering(v)}>{v}</Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        <ConfigRow label="Via Plating Method">
+                                            {["Not Specified", "Conductive Adhesive", "Horizontal Electroless Copper Plating"].map(v => (
+                                                <Pill key={v} active={viaPlating === v} onClick={() => setViaPlating(v)}>{v}</Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        <ConfigRow label="Electrical Test">
+                                            {["Flying Probe Fully Test", "Not Tested"].map(t => (
+                                                <Pill key={t} active={elecTest === t} onClick={() => setElecTest(t)} activeColor="blue">{t}</Pill>
+                                            ))}
+                                        </ConfigRow>
+
+                                        {/* Simplified for brevity, add remaining as needed */}
+                                        <ConfigRow label="Gold Fingers">
+                                            <Pill active={goldFingers === "No"} onClick={() => setGoldFingers("No")}>No</Pill>
+                                            <Pill active={goldFingers === "Yes"} onClick={() => setGoldFingers("Yes")}>Yes</Pill>
+                                        </ConfigRow>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Accordion: Advanced Options */}
+                            <div className="mt-4 mb-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setAdvancedOpen(!advancedOpen)}
+                                    className="w-full flex items-center justify-between px-4 py-2 bg-[#f0f4f8] hover:bg-[#e4ebf3] transition-colors rounded-xs cursor-pointer select-none"
+                                >
+                                    <span className="text-sm font-bold text-gray-900">Advanced Options</span>
+                                    {advancedOpen ? <ChevronUp className="w-4 h-4 text-gray-600" /> : <ChevronDown className="w-4 h-4 text-gray-600" />}
+                                </button>
+
+                                {advancedOpen && (
+                                    <div className="py-2 space-y-4">
+                                        <div className="w-full">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRemarkTextarea(!showRemarkTextarea)}
+                                                className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-primary transition-colors cursor-pointer group mb-2"
+                                            >
+                                                <span>PCB Remark</span>
+                                                <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary transition-colors" />
+                                            </button>
+
+                                            {(showRemarkTextarea || pcbRemark) && (
+                                                <textarea
+                                                    rows={3}
+                                                    value={pcbRemark}
+                                                    onChange={(e) => setPcbRemark(e.target.value)}
+                                                    className="w-full p-3 border border-gray-300 rounded-xl focus:border-primary outline-none text-sm resize-y"
+                                                    placeholder="Add your PCB remarks here..."
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-4 p-4 border border-gray-200 rounded-lg flex items-center justify-between bg-white hover:border-primary/50 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <Cpu className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-gray-900">PCB Assembly</span>
+                                            <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">QUOTE</span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 mt-0.5">Assembly cost starting from $0 with coupon <a href="#" className="text-primary hover:underline">&gt;</a></p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setAssemblyOn(!assemblyOn)}
+                                    className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${assemblyOn ? 'bg-primary' : 'bg-gray-200'}`}
+                                >
+                                    <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${assemblyOn ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+
+                            {/* Addons Row 2 */}
+                            <div className="mt-4 p-4 border border-gray-200 rounded-lg flex items-center justify-between bg-white hover:border-primary/50 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                                        <Layers className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-gray-900">Stencil</div>
+                                        <p className="text-sm text-gray-500 mt-0.5">Order together with PCB. <a href="#" className="text-primary hover:underline">Stencil Order Guide &gt;</a></p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setStencilOn(!stencilOn)}
+                                    className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${stencilOn ? 'bg-primary' : 'bg-gray-200'}`}
+                                >
+                                    <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${stencilOn ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    {/* Right Column - Charge Details */}
+                    <div className="w-full lg:w-[360px] shrink-0 sticky top-24">
+                        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-lg overflow-hidden">
+                            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <h2 className="text-[17px] font-bold text-gray-900">Charge Details</h2>
+                                <ChevronUp className="w-5 h-5 text-gray-500" />
+                            </div>
+
+                            <div className="p-5 space-y-4">
+                                <div className="flex justify-between text-[14px] text-gray-600">
+                                    <span>Special Offer</span>
+                                    <span className="font-medium text-gray-900">$2.00</span>
+                                </div>
+
+                                {viaCovering !== "Not Specified" && (
+                                    <div className="flex justify-between text-[14px] text-gray-600">
+                                        <span>Via Covering</span>
+                                        <span className="font-medium text-gray-900">$16.50</span>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-between text-[14px] text-gray-600">
+                                    <span>Surface Finish</span>
+                                    <span className="font-medium text-gray-900">$0.00</span>
+                                </div>
+
+                                <div className="pt-4 border-t border-gray-100">
+                                    <div className="text-[14px] text-gray-600 mb-3">PCB Build Time</div>
+                                    <div className="space-y-2">
+                                        <label
+                                            onClick={() => setBuildTime("2 days")}
+                                            className={`flex items-center justify-between p-3 rounded border cursor-pointer transition-colors ${buildTime === "2 days" ? "border-primary bg-primary/10" : "border-gray-200 hover:border-primary/50"
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="radio"
+                                                    name="buildTime"
+                                                    checked={buildTime === "2 days"}
+                                                    onChange={() => setBuildTime("2 days")}
+                                                    className="w-4 h-4 text-primary cursor-pointer"
+                                                />
+                                                <span className={`text-sm font-medium ${buildTime === "2 days" ? "text-primary" : "text-gray-700"}`}>2 days</span>
+                                            </div>
+                                            <span className="text-sm font-medium text-gray-900">$0.00</span>
+                                        </label>
+
+                                        <label
+                                            onClick={() => setBuildTime("24 hours")}
+                                            className={`flex items-center justify-between p-3 rounded border cursor-pointer transition-colors ${buildTime === "24 hours" ? "border-primary bg-primary/10" : "border-gray-200 hover:border-primary/50"
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="radio"
+                                                    name="buildTime"
+                                                    checked={buildTime === "24 hours"}
+                                                    onChange={() => setBuildTime("24 hours")}
+                                                    className="w-4 h-4 text-primary cursor-pointer"
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-sm font-medium ${buildTime === "24 hours" ? "text-primary" : "text-gray-700"}`}>24 hours</span>
+                                                    <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded border border-primary/20">+$14/day</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-sm font-medium text-gray-900">$14.00</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-gray-100 text-right">
+                                    <div className="text-sm text-gray-500 mb-1 text-left">Calculated Price:</div>
+                                    <div className="text-3xl font-bold text-primary">$18.50</div>
+                                    <p className="text-[11px] text-gray-400 mt-1">*Additional charges may apply for special cores</p>
+                                </div>
+
+                                <button className="w-full h-12 bg-primary hover:bg-secondary text-white font-bold rounded shadow-sm transition-all flex items-center justify-center gap-2 text-[15px] cursor-pointer">
+                                    SAVE TO CART
+                                </button>
+
+                                <div className="p-4 bg-gray-50 rounded border border-gray-100 text-sm">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-gray-600">Shipping Estimate</span>
+                                        <span className="font-bold text-gray-900">$29.23</span>
+                                    </div>
+                                    <div className="text-gray-500 text-xs flex justify-between">
+                                        <span>DHL Express (DDP)</span>
+                                        <span>Weight: 0.29kg</span>
+                                    </div>
+                                    <div className="text-gray-500 text-xs mt-1">2-4 business days</div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                    <span className="inline-flex items-center gap-1 text-xs border border-primary/30 bg-primary/10 text-primary px-2 py-1 rounded">
+                                        Save $20.00
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 text-xs border border-primary/30 bg-primary/10 text-primary px-2 py-1 rounded">
+                                        Save $50.00
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            {/* Footer */}
+            <footer className="bg-[#0f1729] text-gray-300 pt-16 pb-8 mt-12 border-t-4 border-primary">
+                <div className="max-w-[1400px] mx-auto px-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 mb-12">
+                        <div>
+                            <h3 className="text-white font-bold mb-4 uppercase text-sm tracking-wider">PCB Service</h3>
+                            <ul className="space-y-2 text-sm">
+                                <li><a href="#" className="hover:text-white transition-colors">FR-4 PCBs</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Flexible PCBs</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Advanced PCBs</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">PCB Assembly</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">SMT Stencil</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 className="text-white font-bold mb-4 uppercase text-sm tracking-wider">Support</h3>
+                            <ul className="space-y-2 text-sm">
+                                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Shipping Guide</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Payment Options</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Community</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 className="text-white font-bold mb-4 uppercase text-sm tracking-wider">Company</h3>
+                            <ul className="space-y-2 text-sm">
+                                <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Quality Assurance</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Factory Tour</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Certifications</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
+                            </ul>
+                        </div>
+                        <div className="lg:col-span-3 flex flex-col items-start lg:items-end">
+                            <div className="flex items-center gap-2 mb-6">
+                                <img src="/images/logo.png" alt="Megabyte Circuit Logo" className="h-24 w-auto object-contain brightness-0 invert" />
+                            </div>
+                            <p className="text-sm leading-relaxed mb-2 max-w-sm lg:text-right text-gray-400">
+                                India's trusted PCB manufacturing partner delivering precision-engineered boards for startups, engineers, and enterprises.
+                            </p>
+                            <p className="text-xs text-primary font-semibold italic mb-6 lg:text-right">
+                                "From Imagination To Innovation"
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
+                        <div>© {new Date().getFullYear()} Megabyte Circuit. All Rights Reserved.</div>
+                        <div className="flex gap-6">
+                            <a href={`${mainSiteUrl}/privacy-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Privacy Policy</a>
+                            <a href={`${mainSiteUrl}/terms-of-service`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Terms & Conditions</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+
+            <PanelModal
+                isOpen={panelModalOpen}
+                onClose={() => setPanelModalOpen(false)}
+                onSubmit={(data) => {
+                    setPanelColumn(data.panelColumn);
+                    setPanelRow(data.panelRow);
+                }}
+                singleWidth={pcbWidth}
+                singleHeight={pcbHeight}
+                initialColumn={panelColumn}
+                initialRow={panelRow}
+            />
+        </div>
+    );
+}

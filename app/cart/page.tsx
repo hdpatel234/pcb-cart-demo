@@ -1,0 +1,1178 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import DashboardSidebar from "@/components/DashboardSidebar";
+import GerberBoardPreview from "@/components/GerberBoardPreview";
+import { Search, ShoppingBag, Trash2, ShieldCheck, ArrowRight, Plus, Loader2, Sliders, Zap } from "lucide-react";
+import { useCurrency } from "@/context/CurrencyContext";
+import { saveCartToBackend, loadCartFromBackend, removeCartItemFromBackend, setCartSessionId, getMinCartQuantity, safeSetStorage } from "@/lib/cartSession";
+import { isJlcpcbRequired, getMatchedJlcpcbConditions } from "@/lib/jlcpcbCondition";
+import EditSpecsModal from "@/components/EditSpecsModal";
+
+import { getAuthToken, getAuthUser } from "@/lib/auth";
+
+interface CartItem {
+    id: string;
+    productType: "pcb" | "stencil" | "part";
+    boardName: string;
+    gerberFileName?: string;
+    gerberPreview?: string;
+    boardId?: string;
+    pcbColor?: string;
+    layers: string;
+    dimensions: string;
+    qty: number;
+    buildTime: string;
+    price: number;
+    unitPrice?: number;
+    material: string;
+    baseMaterial?: string;
+    materialType?: string;
+    thickness: string;
+    surfaceFinish?: string;
+    copperWeight?: string;
+    shippingOption?: string;
+    shippingOptionKey?: string;
+    shippingCharge?: number;
+    width?: number | string;
+    height?: number | string;
+    date: string;
+    deliveryDate?: string;
+    delivery_date?: string;
+    customerNote?: string;
+    baseUnitPrice?: number;
+    standardPricing?: any[];
+    jlcpcb_price?: number;
+    jlcpcb_file_key?: string;
+    jlcpcb_quote?: any;
+    jlcpcb_quotation_snapshot?: any;
+    quotation_source?: string;
+    order_type?: string;
+    substrateType?: string;
+    copperType?: string;
+    coverlayColor?: string;
+    coverlayThickness?: string;
+    stiffener?: string;
+    emiShielding?: string;
+    cuttingMethod?: string;
+    edaSoftware?: string;
+    silkscreenOnStiffener?: string;
+    viaCovering?: string;
+    viaPlating?: string;
+    minHole?: string;
+    goldFingers?: string;
+    castellated?: string;
+    edgePlating?: string;
+    blindSlots?: string;
+    silkscreen?: string;
+    differentDesign?: string;
+    elecTest?: string;
+    pnNumber?: string;
+    pn_number?: string;
+}
+
+const calculateCartDeliveryDate = (targetWorkingDays: number): string => {
+    const d = new Date();
+    let workingDaysAdded = 0;
+    while (workingDaysAdded < targetWorkingDays) {
+        d.setDate(d.getDate() + 1);
+        if (d.getDay() !== 0) { // Skip Sunday
+            workingDaysAdded++;
+        }
+    }
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
+
+const validatePcbItemLeadTime = (item: CartItem): CartItem & { areaExceeded?: boolean } => {
+    if (item.productType === "part") return item;
+
+    let w = Number(item.width);
+    let h = Number(item.height);
+    if ((!w || !h) && item.dimensions) {
+        const match = item.dimensions.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+        if (match) {
+            w = parseFloat(match[1]);
+            h = parseFloat(match[2]);
+        }
+    }
+    if (!w) w = 100;
+    if (!h) h = 100;
+
+    const layers = parseInt(String(item.layers).replace(/\D/g, ""), 10) || 2;
+    const qty = Math.max(item.qty || 5, 5);
+    const totalAreaInSqM = (w / 1000) * (h / 1000) * qty;
+
+    let areaExceeded = false;
+    let minAllowedDays = 1;
+
+    if (layers >= 4 && layers <= 10) {
+        minAllowedDays = 20;
+    } else if (layers === 2) {
+        if (totalAreaInSqM > 2) {
+            minAllowedDays = 7;
+        } else if (totalAreaInSqM > 1.5) {
+            minAllowedDays = 5;
+        } else if (totalAreaInSqM > 1) {
+            minAllowedDays = 3;
+        }
+    } else if (layers === 1) {
+        if (totalAreaInSqM > 5) {
+            minAllowedDays = 7;
+        } else if (totalAreaInSqM > 3) {
+            minAllowedDays = 5;
+        } else if (totalAreaInSqM > 2) {
+            minAllowedDays = 3;
+        }
+    }
+
+    const currentBuildDays = parseInt(String(item.buildTime).replace(/\D/g, ""), 10) || 1;
+    const finalDays = Math.max(currentBuildDays, minAllowedDays);
+    const updatedBuildTime = `${finalDays} days`;
+    const updatedDate = calculateCartDeliveryDate(finalDays);
+
+    return {
+        ...item,
+        buildTime: updatedBuildTime,
+        date: updatedDate,
+        deliveryDate: updatedDate,
+        delivery_date: updatedDate,
+        areaExceeded
+    };
+};
+
+export default function CartPage() {
+    const router = useRouter();
+    const { symbol, formatPrice } = useCurrency();
+    const [activeTab, setActiveTab] = useState<"all" | "pcb" | "part" | "stencil">("pcb");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [minPartsOrderAmount, setMinPartsOrderAmount] = useState<number>(3000);
+    const [calculatingItemIds, setCalculatingItemIds] = useState<Record<string, boolean>>({});
+    const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+
+    const saveBackendTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const jlcpcbDebounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+
+    useEffect(() => {
+        const fetchPricingConfig = async () => {
+            try {
+                const res = await fetch("/api/pcb-pricing");
+                const data = await res.json();
+                if (data.success && data.data && data.data.minPartsOrderAmount !== undefined) {
+                    setMinPartsOrderAmount(Number(data.data.minPartsOrderAmount));
+                }
+            } catch (err) {
+                console.error("Failed to load pcb-pricing config in cart:", err);
+            }
+        };
+        fetchPricingConfig();
+    }, []);
+
+    useEffect(() => {
+        try {
+            const token = getAuthToken();
+            const user = getAuthUser();
+            setIsLoggedIn(Boolean(token && user));
+        } catch (e) {
+            setIsLoggedIn(false);
+        }
+    }, []);
+
+    // Flush any pending debounced backend save on unmount
+    useEffect(() => {
+        return () => {
+            if (saveBackendTimerRef.current) {
+                clearTimeout(saveBackendTimerRef.current);
+                saveBackendTimerRef.current = null;
+                const savedCart = typeof window !== "undefined" ? localStorage.getItem("megabyte_cart") : null;
+                if (savedCart) {
+                    try {
+                        const items = JSON.parse(savedCart);
+                        saveCartToBackend(items).catch(() => {});
+                    } catch (e) {}
+                }
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const initCart = async () => {
+            try {
+                if (typeof window !== "undefined") {
+                    const searchParams = new URLSearchParams(window.location.search);
+                    const urlSessionId = searchParams.get("session_id");
+                    if (urlSessionId) {
+                        setCartSessionId(urlSessionId);
+                    }
+                }
+                const savedCart = localStorage.getItem("megabyte_cart");
+                let items: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
+                const backendItems = await loadCartFromBackend();
+                if (Array.isArray(backendItems)) {
+                    items = backendItems;
+                }
+                items = items.map((item) => {
+                    const minCartQty = getMinCartQuantity();
+                    if (item.productType === "part" && (!item.qty || item.qty < minCartQty)) {
+                        const minQty = minCartQty;
+                        let basePrice = (item as any).baseUnitPrice;
+                        if (!basePrice) {
+                            const currentUnit = item.unitPrice || (item.qty > 0 ? item.price / item.qty : item.price);
+                            let oldMult = 1;
+                            if (item.qty >= 500) oldMult = 0.62;
+                            else if (item.qty >= 100) oldMult = 0.70;
+                            else if (item.qty >= 50) oldMult = 0.78;
+                            else if (item.qty >= 25) oldMult = 0.85;
+                            else if (item.qty >= 10) oldMult = 0.92;
+                            basePrice = currentUnit / oldMult;
+                        }
+                        const multiplier = 0.62;
+                        const effectiveUnitPrice = Math.round(basePrice * multiplier * 100) / 100;
+                        const newPrice = Math.round(effectiveUnitPrice * minQty * 100) / 100;
+                        return {
+                            ...item,
+                            qty: minQty,
+                            price: newPrice,
+                            unitPrice: effectiveUnitPrice,
+                            baseUnitPrice: basePrice,
+                        };
+                    }
+                    if (item.productType !== "part" && (!item.qty || item.qty < 5)) {
+                        return validatePcbItemLeadTime({
+                            ...item,
+                            qty: 5
+                        });
+                    }
+                    return validatePcbItemLeadTime(item);
+                });
+                setCartItems(items);
+
+                // Auto-fetch live JLCPCB quotation for items that require JLCPCB and do not have jlcpcb_price
+                const pendingJlcItems = items.filter(
+                    (it) => it.productType === "pcb" && isJlcpcbRequired(it) && !it.jlcpcb_price
+                );
+                if (pendingJlcItems.length > 0) {
+                    setTimeout(async () => {
+                        let currentList = [...items];
+                        let hasChanges = false;
+                        for (const it of pendingJlcItems) {
+                            try {
+                                const quoted = await recalculateJlcpcbQuote(it, it.qty);
+                                currentList = currentList.map((x) => (String(x.id) === String(it.id) ? quoted : x));
+                                hasChanges = true;
+                            } catch (e) {
+                                console.error("Initial cart JLCPCB auto-quote error:", e);
+                            }
+                        }
+                        if (hasChanges) {
+                            setCartItems(currentList);
+                            saveCart(currentList, true);
+                        }
+                    }, 50);
+                }
+
+                const allIds = items.map((item) => String(item.id));
+                const savedSelected = localStorage.getItem("selectedCartItemIds");
+                if (savedSelected) {
+                    try {
+                        const parsed = JSON.parse(savedSelected);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setSelectedItemIds(parsed.map(String));
+                            localStorage.removeItem("selectedCartItemIds");
+                        } else {
+                            setSelectedItemIds(allIds);
+                        }
+                    } catch {
+                        setSelectedItemIds(allIds);
+                    }
+                } else {
+                    setSelectedItemIds(allIds);
+                }
+            } catch (e) {
+                console.error("Failed to load cart", e);
+            }
+            setIsLoaded(true);
+        };
+        initCart();
+    }, []);
+
+    const saveCart = async (items: CartItem[], immediate: boolean = false) => {
+        setCartItems(items);
+        safeSetStorage("megabyte_cart", items);
+        window.dispatchEvent(new Event("megabyte_cart_updated"));
+
+        if (saveBackendTimerRef.current) {
+            clearTimeout(saveBackendTimerRef.current);
+            saveBackendTimerRef.current = null;
+        }
+
+        if (immediate) {
+            await saveCartToBackend(items);
+        } else {
+            saveBackendTimerRef.current = setTimeout(async () => {
+                await saveCartToBackend(items);
+                saveBackendTimerRef.current = null;
+            }, 600);
+        }
+    };
+
+    const handleRemoveItem = async (id: any) => {
+        const strId = String(id);
+        const updated = await removeCartItemFromBackend(strId);
+        setCartItems(updated);
+        setSelectedItemIds((prev) => prev.filter((itemId) => String(itemId) !== strId));
+    };
+
+    const handleRemoveSelectedItems = async () => {
+        if (selectedItemIds.length === 0) return;
+        const remainingItems = cartItems.filter(
+            (item) => !selectedItemIds.includes(String(item.id))
+        );
+        await saveCart(remainingItems, true);
+        setSelectedItemIds([]);
+    };
+
+    const recalculateJlcpcbQuote = async (item: CartItem, newQty: number): Promise<CartItem> => {
+        try {
+            const layersCount = parseInt(String(item.layers || "").replace(/\D/g, ""), 10) || 4;
+            let width = Number(item.width);
+            let height = Number(item.height);
+            if ((!width || !height) && item.dimensions) {
+                const match = item.dimensions.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+                if (match) {
+                    width = parseFloat(match[1]);
+                    height = parseFloat(match[2]);
+                }
+            }
+            if (!width) width = 100;
+            if (!height) height = 100;
+
+            const rawThickness = parseFloat(String(item.thickness || "1.6").replace(/[^0-9.]/g, "")) || 1.6;
+
+            const colorMap: Record<string, number> = {
+                "Green": 0, "Red": 1, "Yellow": 2, "Blue": 3,
+                "White": 4, "Black": 5, "Purple": 6, "Matte Black": 7, "Matte Green": 8
+            };
+
+            let surfaceFinishVal = 0;
+            const sf = (item.surfaceFinish || "").toLowerCase();
+            if (sf.includes("enig")) surfaceFinishVal = 2;
+            else if (sf.includes("lead-free") || sf.includes("hasl(lead-free)") || sf.includes("leadfree")) surfaceFinishVal = 1;
+            else if (sf.includes("osp")) surfaceFinishVal = 3;
+            else surfaceFinishVal = 0;
+
+            if (layersCount >= 6 && surfaceFinishVal === 0) {
+                surfaceFinishVal = 2;
+            }
+
+            let plateTypeVal = 1; // 1-FR-4
+            const mat = (item.baseMaterial || item.material || "").toLowerCase();
+            if (mat.includes("flex")) plateTypeVal = 7;
+            else if (mat.includes("roger")) plateTypeVal = 5;
+            else if (mat.includes("ptfe") || mat.includes("teflon")) plateTypeVal = 6;
+            else if (mat.includes("aluminum")) plateTypeVal = 2;
+            else if (mat.includes("hdi")) plateTypeVal = layersCount >= 4 ? 8 : 1;
+
+            let copperWeightVal = (item.copperWeight || "").includes("2") ? 2 : 1;
+            if (plateTypeVal === 7) {
+                // For Flex PCB: 1-2 layers uses 0.33 oz (12µm foil); 4 layers uses 1 oz
+                copperWeightVal = layersCount >= 4 ? 1 : 0.33;
+            }
+
+            let viaCoveringVal = 1;
+            const vc = (item.viaCovering || "").toLowerCase();
+            if (vc.includes("copper") && (vc.includes("paste") || vc.includes("fill"))) {
+                viaCoveringVal = 5;
+            } else if (vc.includes("epoxy")) {
+                viaCoveringVal = 4;
+            } else if (vc.includes("plugged")) {
+                viaCoveringVal = 3;
+            } else if (vc.includes("untented")) {
+                viaCoveringVal = 2;
+            } else {
+                viaCoveringVal = 1;
+            }
+
+            let minHoleVal = 0.3;
+            const mh = (item.minHole || "").toLowerCase();
+            if (mh.includes("0.15")) minHoleVal = 0.15;
+            else if (mh.includes("0.2mm") || mh.startsWith("0.2/")) minHoleVal = 0.2;
+            else if (mh.includes("0.25")) minHoleVal = 0.25;
+
+            const fileKey = (item as any).jlcpcb_file_key || (item as any).jlcpcbFileKey || (item as any).fileKey || "";
+            const gerberId = (item as any).gerber_file_id || (item as any).uploadedGerberFileId || undefined;
+
+            let materialDetailsVal = 0;
+            const mt = ((item as any).materialType || "").toLowerCase();
+            if (mt.includes("kb6164")) materialDetailsVal = 1;
+            else if (mt.includes("nan ya") || mt.includes("np-140f")) materialDetailsVal = 2;
+            else if (mt.includes("s1141")) materialDetailsVal = 3;
+            else if (mt.includes("s1000h")) materialDetailsVal = 4;
+            else materialDetailsVal = 0;
+
+            const cartServiceConfigs: any[] = [];
+            if (plateTypeVal === 7) {
+                cartServiceConfigs.push({
+                    serviceConfigCode: "CTC",
+                    configOptionShow: layersCount >= 4 ? "PI:25um/AD:25um" : "PI:12.5um/AD:15um"
+                });
+            } else if (plateTypeVal === 5) {
+                cartServiceConfigs.push({
+                    serviceConfigCode: "HFMT",
+                    configOptionShow: (item as any).materialType || "RO4350B(Dk=3.48,Df=0.0037)"
+                });
+            } else if (plateTypeVal === 6) {
+                cartServiceConfigs.push({
+                    serviceConfigCode: "HFMT",
+                    configOptionShow: (item as any).materialType || "ZYF300CA-C(Dk=2.94,Df=0.0016)"
+                });
+            }
+
+            const payload = {
+                orderType: 1,
+                achieveDate: 48,
+                country: "IN",
+                gerber_id: gerberId,
+                fileKey: fileKey,
+                pcbParam: {
+                    layer: layersCount,
+                    width: width,
+                    length: height,
+                    qty: newQty,
+                    thickness: rawThickness,
+                    pcbColor: colorMap[item.pcbColor || "Green"] ?? 0,
+                    surfaceFinish: surfaceFinishVal,
+                    copperWeight: copperWeightVal,
+                    ...(layersCount >= 4 ? { insideCuprumThickness: "0.5" } : {}),
+                    goldFinger: (item as any).goldFingers === "Yes" || (item as any).gold_fingers === "Yes" ? 1 : 0,
+                    materialDetails: materialDetailsVal,
+                    panelFlag: 0,
+                    differentDesign: parseInt((item as any).differentDesign || "1", 10) || 1,
+                    flyingProbeTest: (item as any).elecTest === "Flying Probe Fully Test" || (item as any).elec_test === "Flying Probe Fully Test" ? 2 : 1,
+                    castellatedHoles: (item as any).castellated === "Yes" ? 1 : 0,
+                    orderDetailsRemark: "Cart Quantity Update",
+                    impedanceFlag: "no",
+                    isAddCustomerCode: "nocode",
+                    plateType: plateTypeVal,
+                    autoConfirmProductionFile: true,
+                    markOnPcb: 1,
+                    viaCovering: viaCoveringVal,
+                    needTechnics: 0,
+                    edgeRounding: (item as any).edgePlating === "Yes",
+                    blindSlots: (item as any).blindSlots === "Yes" ? 1 : 0,
+                    minHole: minHoleVal,
+                    serviceConfigVos: cartServiceConfigs
+                }
+            };
+
+            const res = await fetch("/api/jlcpcb/calculate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json();
+            if (json.success && json.code === 200) {
+                const jlcBasePrice = parseFloat(json.subtotal ?? json.selling_price_before_gst ?? (json.pcb_price || 0));
+
+                let weightKg = 0;
+                if (json.weight_kg !== undefined && json.weight_kg !== null && parseFloat(json.weight_kg) > 0) {
+                    weightKg = parseFloat(json.weight_kg);
+                } else if (json.pcbCostInfo?.weight !== undefined && parseFloat(json.pcbCostInfo.weight) > 0) {
+                    weightKg = parseFloat(json.pcbCostInfo.weight);
+                }
+
+                let newShippingCharge = item.shippingCharge || 0;
+                if (item.shippingOption) {
+                    const defaultShippingOptions = [
+                        { key: "standard", location: "Standard", method: "Standard", rate: 0 },
+                        { key: "plus", location: "Plus", method: "Plus", rate: 150 },
+                        { key: "fasttrack", location: "Fasttrack", method: "Fasttrack", rate: 450 },
+                    ];
+                    const foundOpt = defaultShippingOptions.find(o =>
+                        `${o.location} - ${o.method}` === item.shippingOption ||
+                        o.location === item.shippingOption ||
+                        o.key === item.shippingOptionKey
+                    ) || defaultShippingOptions[0];
+
+                    const totalAreaInSqM = (width / 1000) * (height / 1000) * newQty;
+                    const estimatedWeightKg = weightKg > 0 ? weightKg : Math.max(0.1, parseFloat((totalAreaInSqM * 3.8).toFixed(2)));
+                    const chargedWeightKg = Math.max(1.0, estimatedWeightKg);
+                    newShippingCharge = Math.round(foundOpt.rate * chargedWeightKg);
+                }
+
+                const totalPrice = jlcBasePrice + newShippingCharge;
+                const unitPrice = newQty > 0 ? Math.round((jlcBasePrice / newQty) * 100) / 100 : jlcBasePrice;
+
+                return validatePcbItemLeadTime({
+                    ...item,
+                    qty: newQty,
+                    price: totalPrice,
+                    unitPrice: unitPrice,
+                    jlcpcb_price: jlcBasePrice,
+                    shippingCharge: newShippingCharge,
+                    quotation_source: "jlcpcb",
+                    order_type: "jlcpcb",
+                    jlcpcb_quote: json,
+                    jlcpcb_quotation_snapshot: json,
+                    jlcpcb_file_key: json.fileKey || fileKey
+                });
+            }
+        } catch (err) {
+            console.error("Error recalculating JLCPCB quote:", err);
+        }
+
+        const prevShippingCharge = item.shippingCharge || 0;
+        const prevPcbPrice = Math.max(item.price - prevShippingCharge, 0);
+        const pcbUnitPrice = item.unitPrice || (item.qty > 0 ? prevPcbPrice / item.qty : prevPcbPrice);
+        const newPcbPrice = Math.max(Math.round(pcbUnitPrice * newQty), 10);
+
+        return validatePcbItemLeadTime({
+            ...item,
+            qty: newQty,
+            price: newPcbPrice + prevShippingCharge,
+            unitPrice: pcbUnitPrice
+        });
+    };
+
+    const handleQuantityChange = async (id: any, newQty: number) => {
+        const strId = String(id);
+        const targetItem = cartItems.find((i) => String(i.id) === strId);
+        if (!targetItem) return;
+
+        const minQty = targetItem.productType === "part" ? getMinCartQuantity() : 5;
+        const validQty = Math.max(minQty, isNaN(newQty) ? minQty : newQty);
+
+        const isJlcpcb = isJlcpcbRequired(targetItem);
+
+        if (isJlcpcb) {
+            // Instantly reflect quantity update in local state for fast UI feedback
+            const updatedLocalItem = { ...targetItem, qty: validQty };
+            const localCart = cartItems.map((item) => (String(item.id) === strId ? updatedLocalItem : item));
+            setCartItems(localCart);
+
+            if (jlcpcbDebounceTimersRef.current[strId]) {
+                clearTimeout(jlcpcbDebounceTimersRef.current[strId]);
+            }
+
+            setCalculatingItemIds((prev) => ({ ...prev, [strId]: true }));
+
+            jlcpcbDebounceTimersRef.current[strId] = setTimeout(async () => {
+                delete jlcpcbDebounceTimersRef.current[strId];
+                const recalculatedItem = await recalculateJlcpcbQuote(targetItem, validQty);
+                setCartItems((prevItems) => {
+                    const updatedList = prevItems.map((it) => (String(it.id) === strId ? recalculatedItem : it));
+                    saveCart(updatedList, true);
+                    return updatedList;
+                });
+                setCalculatingItemIds((prev) => {
+                    const copy = { ...prev };
+                    delete copy[strId];
+                    return copy;
+                });
+            }, 500);
+
+            return;
+        }
+
+        let updatedItem = { ...targetItem, qty: validQty };
+
+        if (targetItem.productType === "part") {
+            const partNum = (targetItem as any).partNumber || targetItem.boardName;
+            let standardPricing = (targetItem as any).standardPricing || (targetItem as any).StandardPricing;
+
+            // Fetch latest DB product details & standard pricing tiers if not cached on item
+            if ((!standardPricing || standardPricing.length === 0) && partNum) {
+                try {
+                    const res = await fetch(`/api/digikey/products/${encodeURIComponent(partNum)}`);
+                    if (res.ok) {
+                        const prodData = await res.json();
+                        standardPricing = prodData.StandardPricing || prodData.ProductVariations?.[0]?.StandardPricing;
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch product tiers:", e);
+                }
+            }
+
+            let basePrice = (targetItem as any).baseUnitPrice || targetItem.unitPrice || targetItem.price;
+            let unitPrice = basePrice;
+
+            if (Array.isArray(standardPricing) && standardPricing.length > 0) {
+                const sortedPricing = [...standardPricing].sort((a, b) => b.BreakQuantity - a.BreakQuantity);
+                const applicableTier = sortedPricing.find((tier) => validQty >= tier.BreakQuantity);
+                if (applicableTier) {
+                    unitPrice = applicableTier.UnitPrice;
+                }
+            } else {
+                let multiplier = 1;
+                if (validQty >= 500) multiplier = 0.62;
+                else if (validQty >= 100) multiplier = 0.70;
+                else if (validQty >= 50) multiplier = 0.78;
+                else if (validQty >= 25) multiplier = 0.85;
+                else if (validQty >= 10) multiplier = 0.92;
+                unitPrice = basePrice * multiplier;
+            }
+
+            const effectiveUnitPrice = Math.round(unitPrice * 100) / 100;
+            const newPrice = Math.round(effectiveUnitPrice * validQty * 100) / 100;
+
+            updatedItem = {
+                ...updatedItem,
+                price: newPrice,
+                unitPrice: effectiveUnitPrice,
+                baseUnitPrice: basePrice,
+                standardPricing: standardPricing,
+            };
+        } else {
+            // Extract width & height (or parse from dimensions string '100x100mm')
+            let w = Number(targetItem.width);
+            let h = Number(targetItem.height);
+            if ((!w || !h) && targetItem.dimensions) {
+                const match = targetItem.dimensions.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+                if (match) {
+                    w = parseFloat(match[1]);
+                    h = parseFloat(match[2]);
+                }
+            }
+            if (!w) w = 100;
+            if (!h) h = 100;
+
+            // Compute PCB base price & recalculated shipping charge
+            const prevShippingCharge = targetItem.shippingCharge || 0;
+            const prevPcbPrice = Math.max(targetItem.price - prevShippingCharge, 0);
+
+            const pcbUnitPrice = targetItem.unitPrice || (targetItem.qty > 0 ? prevPcbPrice / targetItem.qty : prevPcbPrice);
+            const newPcbPrice = Math.max(Math.round(pcbUnitPrice * validQty), 10);
+
+            let newShippingCharge = prevShippingCharge;
+            if (targetItem.shippingOption) {
+                const defaultShippingOptions = [
+                    { key: "standard", location: "Standard", method: "Standard", rate: 0 },
+                    { key: "plus", location: "Plus", method: "Plus", rate: 150 },
+                    { key: "fasttrack", location: "Fasttrack", method: "Fasttrack", rate: 450 },
+                ];
+                const foundOpt = defaultShippingOptions.find(o =>
+                    `${o.location} - ${o.method}` === targetItem.shippingOption ||
+                    o.location === targetItem.shippingOption ||
+                    o.key === targetItem.shippingOptionKey
+                ) || defaultShippingOptions[0];
+
+                const totalAreaInSqM = (w / 1000) * (h / 1000) * validQty;
+                const weightPerSqM = targetItem.material === "Flex" ? 0.3 : 3.8;
+                const estimatedWeightKg = Math.max(0.1, parseFloat((totalAreaInSqM * weightPerSqM).toFixed(2)));
+                const chargedWeightKg = Math.max(1.0, estimatedWeightKg);
+                newShippingCharge = Math.round(foundOpt.rate * chargedWeightKg);
+            }
+
+            const totalPriceWithShipping = newPcbPrice + newShippingCharge;
+
+            updatedItem = validatePcbItemLeadTime({
+                ...updatedItem,
+                price: totalPriceWithShipping,
+                unitPrice: pcbUnitPrice,
+                shippingCharge: newShippingCharge
+            });
+        }
+
+        const updated = cartItems.map((item) => (String(item.id) === strId ? updatedItem : item));
+        await saveCart(updated);
+    };
+
+    // Filter items
+    const filteredItems = cartItems.filter((item) => {
+        const matchesTab =
+            activeTab === "all"
+                ? true
+                : activeTab === "pcb"
+                    ? item.productType === "pcb"
+                    : activeTab === "part"
+                        ? item.productType === "part"
+                        : item.productType === "stencil";
+        const matchesSearch =
+            (item.boardName && item.boardName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            ((item as any).partNumber && (item as any).partNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (item.gerberFileName && item.gerberFileName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            ((item as any).description && (item as any).description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (item.layers && String(item.layers).includes(searchQuery)) ||
+            (item.material && item.material.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesTab && matchesSearch;
+    });
+
+    const isAllSelected = filteredItems.length > 0 && filteredItems.every((item) => selectedItemIds.includes(String(item.id)));
+
+    const toggleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedItemIds([]);
+        } else {
+            setSelectedItemIds(filteredItems.map((item) => String(item.id)));
+        }
+    };
+
+    const toggleSelectItem = (id: any) => {
+        const strId = String(id);
+        const targetItem = cartItems.find((i) => String(i.id) === strId);
+        if (!targetItem) return;
+
+        if (selectedItemIds.includes(strId)) {
+            setSelectedItemIds(selectedItemIds.filter((itemId) => itemId !== strId));
+        } else {
+            const existingSelected = cartItems.filter((i) => selectedItemIds.includes(String(i.id)));
+            if (existingSelected.length > 0) {
+                const existingCategory = existingSelected[0].productType === "part" ? "part" : "pcb";
+                const targetCategory = targetItem.productType === "part" ? "part" : "pcb";
+                if (existingCategory !== targetCategory) {
+                    setSelectedItemIds([strId]);
+                    return;
+                }
+            }
+            setSelectedItemIds([...selectedItemIds, strId]);
+        }
+    };
+
+    const pcbCount = cartItems.filter((i) => i.productType === "pcb").length;
+    const partCount = cartItems.filter((i) => i.productType === "part").length;
+    const stencilCount = cartItems.filter((i) => i.productType === "stencil").length;
+
+    // Items matching the active tab (regardless of search filter)
+    const tabItems = cartItems.filter((item) => {
+        if (activeTab === "pcb") return item.productType === "pcb";
+        if (activeTab === "part") return item.productType === "part";
+        if (activeTab === "stencil") return item.productType === "stencil";
+        return true;
+    });
+
+    const selectedCartItemsList = cartItems.filter(
+        (item) =>
+            selectedItemIds.includes(String(item.id)) &&
+            (activeTab === "pcb"
+                ? item.productType === "pcb"
+                : activeTab === "part"
+                ? item.productType === "part"
+                : item.productType === "stencil")
+    );
+    
+    // Summary ALWAYS reflects the currently active tab.
+    // If specific items in the active tab are checked, calculate those.
+    // If no items in active tab are checked, calculate all items in the active tab.
+    const effectiveSummaryItems = selectedCartItemsList.length > 0 ? selectedCartItemsList : tabItems;
+    const selectedCount = effectiveSummaryItems.length;
+
+    const selectedShippingTotal = effectiveSummaryItems.reduce(
+        (acc, item) => acc + (item.shippingCharge || 0),
+        0
+    );
+
+    const selectedSubtotal = effectiveSummaryItems.reduce(
+        (acc, item) => acc + (item.price - (item.shippingCharge || 0)),
+        0
+    );
+
+    const selectedTotal = effectiveSummaryItems.reduce((acc, item) => acc + item.price, 0);
+
+    const handleCheckoutClick = async () => {
+        if (selectedCartItemsList.length === 0) return;
+        if (activeTab === "part" && selectedTotal < minPartsOrderAmount) return;
+
+        if (saveBackendTimerRef.current) {
+            clearTimeout(saveBackendTimerRef.current);
+            saveBackendTimerRef.current = null;
+            await saveCartToBackend(cartItems);
+        }
+
+        // Store ONLY checked items for checkout processing safely without heavy SVGs
+        safeSetStorage("megabyte_checkout_items", selectedCartItemsList);
+
+        const userToken = typeof window !== "undefined" ? (localStorage.getItem("megabyte_user_token") || localStorage.getItem("megabyte_user")) : null;
+        if (!userToken) {
+            router.push("/login?redirect=/checkout");
+            return;
+        }
+        router.push("/checkout");
+    };
+
+
+    return (
+        <div className="min-h-screen bg-[#f4f6f9] flex flex-col lg:flex-row font-sans">
+            {isLoggedIn && <DashboardSidebar />}
+
+            <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+                <Header />
+
+                <main className={`flex-1 w-full py-6 sm:py-8 space-y-6 ${isLoggedIn ? "px-4 sm:px-6 lg:px-8" : "max-w-[1550px] mx-auto px-4"}`}>
+                    {/* Header Banner (Matching Dashboard/Orders/Quote Page Header Style) */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-200/80 shadow-2xs">
+                        <div>
+                            <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900">
+                                Shopping Cart
+                            </h1>
+                            <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                Review your selected PCB items and proceed to secure checkout.
+                            </p>
+                        </div>
+
+                        <Link
+                            href="/"
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary hover:bg-secondary text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95 shrink-0"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Continue Shopping</span>
+                        </Link>
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row gap-6">
+                        <div className="flex-1 space-y-4">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200/80 p-4 sm:p-5">
+                                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200/80">
+                                    <div className="flex items-center gap-6 overflow-x-auto text-xs sm:text-sm font-semibold text-gray-600 select-none">
+                                        {/* <button type="button" onClick={() => setActiveTab("all")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "all" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>All ({cartItems.length})</button> */}
+                                        <button type="button" onClick={() => setActiveTab("pcb")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "pcb" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>Megabyte PCB ({pcbCount})</button>
+                                        <button type="button" onClick={() => setActiveTab("part")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "part" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>Parts ({partCount})</button>
+                                        {stencilCount > 0 && (
+                                            <button type="button" onClick={() => setActiveTab("stencil")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "stencil" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>SMT Stencil ({stencilCount})</button>
+                                        )}
+                                    </div>
+
+                                    <div className="relative w-full sm:w-60">
+                                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search" className="w-full h-8 pl-3 pr-8 text-xs border border-gray-200 rounded-lg focus:border-primary focus:outline-none transition-colors" />
+                                        <Search className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                {filteredItems.length > 0 && (
+                                    <div className="flex items-center justify-between py-3 px-3 border-b border-gray-100 text-xs font-bold text-gray-500 bg-gray-50/50 rounded-lg mt-3">
+                                        <div className="flex items-center gap-3">
+                                            <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer" />
+                                            <span className="uppercase text-[11px]">Item</span>
+                                        </div>
+                                        <div className="hidden sm:flex items-center gap-3 sm:gap-5 text-[11px] uppercase">
+                                            <span className="w-24 text-center">Qty</span>
+                                            {activeTab !== "part" && (
+                                                <>
+                                                    <span className="w-20 text-center">Build Time</span>
+                                                    <span className="w-36 text-center">Delivery Option</span>
+                                                </>
+                                            )}
+                                            <span className="w-24 text-right">Price</span>
+                                            <div className="w-8 flex justify-center">
+                                                <button type="button" onClick={handleRemoveSelectedItems} disabled={selectedItemIds.length === 0} className={`p-1 rounded transition-colors ${selectedItemIds.length > 0 ? "text-red-500 hover:bg-red-50 cursor-pointer" : "text-gray-300 cursor-not-allowed"}`} title="Delete Selected">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!isLoaded ? (
+                                    <div className="py-6 space-y-4 animate-pulse">
+                                        {[1, 2, 3].map((i) => (
+                                            <div key={i} className="py-4 px-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100">
+                                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                    <div className="w-4 h-4 rounded bg-gray-200 mt-1 shrink-0"></div>
+                                                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-xl shrink-0"></div>
+                                                    <div className="space-y-2 min-w-0 flex-1 py-1">
+                                                        <div className="h-4 bg-gray-200 rounded w-48"></div>
+                                                        <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                                                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 pt-2 sm:pt-0 shrink-0">
+                                                    <div className="w-24 h-7 bg-gray-200 rounded-lg"></div>
+                                                    <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                                                    <div className="w-36 h-8 bg-gray-200 rounded-lg"></div>
+                                                    <div className="w-24 h-5 bg-gray-200 rounded"></div>
+                                                    <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : cartItems.length === 0 ? (
+                                    <div className="py-16 text-center space-y-3">
+                                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400"><ShoppingBag className="w-8 h-8" /></div>
+                                        <p className="text-sm font-bold text-gray-700">Your shopping cart is empty.</p>
+                                    </div>
+                                ) : filteredItems.length === 0 ? (
+                                    <div className="py-12 text-center text-xs text-gray-400 font-medium">No items matching your search.</div>
+                                ) : (
+                                    <div className="divide-y divide-gray-100">
+                                        {filteredItems.map((item) => {
+                                            const isSelected = selectedItemIds.includes(String(item.id));
+                                            return (
+                                                <div key={item.id} className={`py-4 px-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${isSelected ? "bg-primary/5" : ""}`}>
+                                                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                        <input type="checkbox" checked={isSelected} onChange={() => toggleSelectItem(item.id)} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary mt-1 shrink-0 cursor-pointer" />
+                                                        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-xl border border-gray-200/90 flex items-center justify-center p-1.5 overflow-hidden shrink-0 relative shadow-xs">
+                                                            {item.productType === "part" ? (
+                                                                <img
+                                                                    src={(item as any).photoUrl || "https://mm.digikey.com/Volume0/opasdata/d220001/medias/images/7182/MFG_RMCF_series.jpg"}
+                                                                    alt={item.boardName || (item as any).partNumber || "Part"}
+                                                                    className="w-full h-full object-contain"
+                                                                    onError={(e) => {
+                                                                        (e.target as HTMLElement).setAttribute(
+                                                                            "src",
+                                                                            "https://mm.digikey.com/Volume0/opasdata/d220001/medias/images/7182/MFG_RMCF_series.jpg"
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <GerberBoardPreview previewData={item.gerberPreview} gerberFileId={(item as any).gerber_file_id || (item as any).uploadedGerberFileId} boardName={item.boardName} pcbColor={item.pcbColor} layers={item.layers} dimensions={item.dimensions} />
+                                                            )}
+                                                        </div>
+                                                        <div className="space-y-1 min-w-0 flex-1">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <h3 className="text-xs sm:text-sm font-extrabold text-gray-900 truncate max-w-[240px] sm:max-w-[320px]">{item.boardName || (item as any).partNumber}</h3>
+                                                                {item.productType !== "part" && isJlcpcbRequired(item) && (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                                                                        <Zap className="w-3 h-3 text-amber-500 fill-amber-400" />
+                                                                        JLCPCB Live
+                                                                    </span>
+                                                                )}
+                                                                {item.productType !== "part" && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setEditingItem(item)}
+                                                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-white hover:bg-primary bg-primary/10 px-2 py-0.5 rounded transition-all cursor-pointer shadow-2xs"
+                                                                        title="Edit board specifications and recalculate live quotation"
+                                                                    >
+                                                                        <Sliders className="w-3 h-3" />
+                                                                        Edit Specs
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            {item.productType === "part" ? (
+                                                                <p className="text-[11px] text-gray-500 font-medium leading-relaxed line-clamp-2">
+                                                                    {(item as any).description || "Electronic Component"}
+                                                                </p>
+                                                            ) : (
+                                                                <>
+                                                                    <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                                                                        {item.layers} Layer, {item.dimensions}, {item.thickness} Thickness, {item.material || "FR-4"}
+                                                                        {(item as any).materialType ? `, ${(item as any).materialType}` : ""}
+                                                                        {(item as any).substrateType ? `, ${(item as any).substrateType}` : ""}
+                                                                        {(item as any).copperType ? `, Copper: ${(item as any).copperType}` : ""}
+                                                                        {(item as any).coverlayColor ? `, Coverlay: ${(item as any).coverlayColor}` : ""}
+                                                                        {(item as any).stiffener && (item as any).stiffener !== "Without" ? `, Stiffener: ${(item as any).stiffener}` : ""}
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-1 pt-0.5">
+                                                                        {(item as any).materialType && (item as any).materialType !== "FR4-TG135" && (item as any).materialType !== "FR4 TG135" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-blue-50 text-blue-700 rounded border border-blue-200">
+                                                                                Material: {(item as any).materialType}
+                                                                            </span>
+                                                                        )}
+                                                                        {item.surfaceFinish && item.surfaceFinish !== "HASL" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-gray-100 text-gray-700 rounded border border-gray-200">
+                                                                                Finish: {item.surfaceFinish}
+                                                                            </span>
+                                                                        )}
+                                                                        {item.viaCovering && item.viaCovering !== "Tented" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-gray-100 text-gray-700 rounded border border-gray-200">
+                                                                                Via: {item.viaCovering}
+                                                                            </span>
+                                                                        )}
+                                                                        {(item as any).viaPlatingMethod && (item as any).viaPlatingMethod !== "Standard" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-gray-100 text-gray-700 rounded border border-gray-200">
+                                                                                Plating: {(item as any).viaPlatingMethod}
+                                                                            </span>
+                                                                        )}
+                                                                        {(item as any).goldFingers && (item as any).goldFingers !== "No" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-50 text-amber-700 rounded border border-amber-200">
+                                                                                Gold Fingers
+                                                                            </span>
+                                                                        )}
+                                                                        {(item as any).castellatedHoles && (item as any).castellatedHoles !== "No" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-50 text-amber-700 rounded border border-amber-200">
+                                                                                Castellated Holes
+                                                                            </span>
+                                                                        )}
+                                                                        {(item as any).edgePlating && (item as any).edgePlating !== "No" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-50 text-amber-700 rounded border border-amber-200">
+                                                                                Edge Plating
+                                                                            </span>
+                                                                        )}
+                                                                        {(item as any).blindSlots && (item as any).blindSlots !== "No" && (
+                                                                            <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-50 text-amber-700 rounded border border-amber-200">
+                                                                                Blind Slots
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 pt-2 sm:pt-0 border-t sm:border-0 border-gray-100 shrink-0">
+                                                        <div className="w-24 flex justify-center">
+                                                            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden h-7 bg-gray-50/50">
+                                                                {(() => {
+                                                                    const min = item.productType === "part" ? getMinCartQuantity() : 5;
+                                                                    const currentQty = item.qty ?? min;
+                                                                    const isMinReached = currentQty <= min;
+                                                                    return (
+                                                                        <>
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={isMinReached}
+                                                                                onClick={() => {
+                                                                                    const step = 1;
+                                                                                    handleQuantityChange(item.id, Math.max(min, currentQty - step));
+                                                                                }}
+                                                                                className={`w-6 h-full flex items-center justify-center text-xs font-bold transition-colors ${
+                                                                                    isMinReached
+                                                                                        ? "text-gray-300 bg-gray-100 cursor-not-allowed"
+                                                                                        : "text-gray-500 hover:bg-gray-200 cursor-pointer"
+                                                                                }`}
+                                                                            >
+                                                                                -
+                                                                            </button>
+                                                                            <input
+                                                                                type="number"
+                                                                                min={min}
+                                                                                step={1}
+                                                                                value={currentQty}
+                                                                                onChange={(e) => {
+                                                                                    const val = parseInt(e.target.value, 10);
+                                                                                    handleQuantityChange(item.id, val);
+                                                                                }}
+                                                                                onBlur={(e) => {
+                                                                                    const val = parseInt(e.target.value, 10);
+                                                                                    if (isNaN(val) || val < min) {
+                                                                                        handleQuantityChange(item.id, min);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-11 text-center text-xs font-bold text-gray-800 bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                            />
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const step = 1;
+                                                                                    handleQuantityChange(item.id, currentQty + step);
+                                                                                }}
+                                                                                className="w-6 h-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors text-xs font-bold cursor-pointer"
+                                                                            >
+                                                                                +
+                                                                            </button>
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                        {item.productType !== "part" && (
+                                                            <>
+                                                                <div className="text-xs font-semibold text-gray-600 w-20 text-center flex justify-center items-center">
+                                                                    {item.buildTime || "-"}
+                                                                </div>
+                                                                <div className="w-36 text-center flex flex-col justify-center items-center">
+                                                                    {item.shippingOption ? (
+                                                                        <div className="bg-blue-50/80 border border-blue-100 rounded-lg px-2 py-1 text-[11px] font-bold text-blue-900 leading-tight">
+                                                                            <div>{item.shippingOption}</div>
+                                                                            <div className="text-[10px] text-primary font-semibold mt-0.5">
+                                                                                Fee: {formatPrice(item.shippingCharge || 0)}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-xs text-gray-400 font-medium">-</span>
+                                                                    )}
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                        <div className="text-sm font-extrabold text-primary w-24 text-right flex justify-end items-center gap-1.5">
+                                                            {calculatingItemIds[String(item.id)] && (
+                                                                <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600 shrink-0" />
+                                                            )}
+                                                            <span className={calculatingItemIds[String(item.id)] ? "opacity-60 transition-opacity" : ""}>
+                                                                {formatPrice(item.price)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="w-8 flex justify-center items-center">
+                                                            <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer" title="Remove item"><Trash2 className="w-4 h-4" /></button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="w-full lg:w-80 shrink-0">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200/80 p-5 space-y-4 sticky top-20">
+                                <h2 className="text-xs font-bold text-gray-700 tracking-wider uppercase border-b border-gray-100 pb-3">SUMMARY</h2>
+
+                                {selectedCount > 0 && (
+                                    <div className="space-y-2 py-2 border-b border-gray-100 text-xs">
+                                        <div className="flex items-center justify-between text-gray-600 font-medium">
+                                            <span>Subtotal ({selectedCount} {selectedCount === 1 ? "item" : "items"})</span>
+                                            <span className="font-semibold text-gray-800">{formatPrice(selectedSubtotal)}</span>
+                                        </div>
+                                        {selectedShippingTotal > 0 && (
+                                            <div className="flex items-center justify-between text-gray-600 font-medium">
+                                                <span>Shipping Cost</span>
+                                                <span className="font-semibold text-gray-800">{formatPrice(selectedShippingTotal)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between text-sm font-extrabold text-gray-900 pt-1">
+                                    <span>Total Amount</span>
+                                    <span className="text-lg text-primary">{formatPrice(selectedTotal)}</span>
+                                </div>
+
+                                {activeTab === "part" && selectedTotal < minPartsOrderAmount && (
+                                    <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-xs flex items-start gap-2">
+                                        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="font-bold">Minimum Order Requirement</p>
+                                            <p className="text-[11px] text-amber-700 mt-0.5">
+                                                Minimum order amount for parts is {formatPrice(minPartsOrderAmount)}. Please add {formatPrice(minPartsOrderAmount - selectedTotal)} more to proceed.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={handleCheckoutClick}
+                                    disabled={selectedItemIds.length === 0 || (activeTab === "part" && selectedTotal < minPartsOrderAmount)}
+                                    className={`w-full py-3 rounded-full text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs ${
+                                        selectedItemIds.length > 0 && !(activeTab === "part" && selectedTotal < minPartsOrderAmount)
+                                            ? "bg-primary hover:bg-secondary cursor-pointer active:scale-95"
+                                            : "bg-gray-300 cursor-not-allowed opacity-75"
+                                    }`}
+                                >
+                                    <ShieldCheck className="w-4 h-4" />
+                                    <span>Secure Checkout</span>
+                                </button>
+                                <div className="pt-3 border-t border-gray-100 space-y-2">
+                                    <div className="text-[10px] text-gray-500 text-center flex items-center justify-center gap-1.5 font-semibold pt-1">
+                                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                        <span>Secured by <strong className="text-blue-700 font-extrabold">Razorpay</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+                {editingItem && (
+                    <EditSpecsModal
+                        isOpen={!!editingItem}
+                        item={editingItem}
+                        onClose={() => setEditingItem(null)}
+                        onSave={async (updatedItem) => {
+                            const updated = cartItems.map((it) => (String(it.id) === String(updatedItem.id) ? updatedItem : it));
+                            setCartItems(updated);
+                            await saveCart(updated, true);
+                            setEditingItem(null);
+                        }}
+                    />
+                )}
+                <Footer />
+            </div>
+        </div>
+    );
+}

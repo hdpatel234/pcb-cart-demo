@@ -1,0 +1,284 @@
+"use client";
+
+import React, { useState, useRef } from "react";
+import { Upload, X, CheckCircle, RefreshCw, AlertCircle } from "lucide-react";
+import { UploadResponse } from "../../lib/gerber/types";
+
+interface GerberUploaderProps {
+    onUploadSuccess: (res: UploadResponse, file: File) => void;
+    onReset: () => void;
+    extraActions?: React.ReactNode;
+}
+
+export default function GerberUploader({ onUploadSuccess, onReset, extraActions }: GerberUploaderProps) {
+    const [dragActive, setDragActive] = useState(false);
+    const [file, setFile] = useState<File | null>(null);
+    const [progress, setProgress] = useState(0);
+    const [loadingState, setLoadingState] = useState<"idle" | "uploading" | "extracting" | "parsing" | "success" | "error">("idle");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    React.useEffect(() => {
+        return () => {
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+            }
+        };
+    }, []);
+
+    const handleDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const validateAndProcessFile = async (selectedFile: File) => {
+        setErrorMessage(null);
+
+        // Size validation: 100 MB
+        const maxSize = 100 * 1024 * 1024;
+        if (selectedFile.size > maxSize) {
+            setErrorMessage("File exceeds 100 MB limit.");
+            setLoadingState("error");
+            return;
+        }
+
+        // Extension validation
+        const ext = selectedFile.name.split(".").pop()?.toLowerCase();
+        if (ext !== "zip" && ext !== "rar") {
+            setErrorMessage("Only .zip and .rar Gerber archives are supported.");
+            setLoadingState("error");
+            return;
+        }
+
+        setFile(selectedFile);
+        uploadFile(selectedFile);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            validateAndProcessFile(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            validateAndProcessFile(e.target.files[0]);
+        }
+    };
+
+    const startPolling = (gerberFileId: number, file: File, initialData: UploadResponse) => {
+        let attempts = 0;
+        const maxAttempts = 90; // 90 * 2s = 180s (3 minutes limit)
+
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+        }
+
+        pollIntervalRef.current = setInterval(async () => {
+            attempts++;
+
+            // Convert percentage based on 3-minute (90 attempts) polling duration (up to 95%)
+            const currentProgress = Math.min(95, Math.floor(10 + (attempts / maxAttempts) * 85));
+            setProgress(currentProgress);
+
+            try {
+                const res = await fetch(`/api/gerber/${gerberFileId}/status`);
+                if (res.ok) {
+                    const statusData: UploadResponse = await res.json();
+
+                    if (statusData.status === "completed") {
+                        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                        setProgress(100);
+                        setLoadingState("success");
+                        const mergedData = { ...initialData, ...statusData };
+                        setTimeout(() => {
+                            onUploadSuccess(mergedData, file);
+                        }, 500);
+                        return;
+                    } else if (statusData.status === "failed") {
+                        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                        setErrorMessage(statusData.error || "PCB Gerber analysis failed.");
+                        setLoadingState("error");
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("Gerber status polling check error:", err);
+            }
+
+            if (attempts >= maxAttempts) {
+                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                setErrorMessage("Analysis timed out. Please try uploading again.");
+                setLoadingState("error");
+            }
+        }, 2000);
+    };
+
+    const getDirectUploadUrl = () => {
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/$/, "");
+        if (!apiBase) return "/api/upload";
+        return apiBase.endsWith("/api") ? `${apiBase}/upload` : `${apiBase}/api/upload`;
+    };
+
+    const uploadFile = (file: File) => {
+        setLoadingState("uploading");
+        setProgress(10);
+
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadUrl = getDirectUploadUrl();
+
+        fetch(uploadUrl, {
+            method: "POST",
+            body: formData,
+        })
+            .then(async (res) => {
+                if (res.status === 413) {
+                    throw new Error("File size exceeds server upload limit (413 Payload Too Large).");
+                }
+                const data: UploadResponse = await res.json();
+                return data;
+            })
+            .then((data: UploadResponse) => {
+                if (data.success && data.gerber_file_id) {
+                    setProgress(15);
+
+                    if (data.status === "completed") {
+                        setProgress(100);
+                        setLoadingState("success");
+                        setTimeout(() => {
+                            onUploadSuccess(data, file);
+                        }, 500);
+                    } else {
+                        // Start status polling for realtime updates
+                        startPolling(data.gerber_file_id, file, data);
+                    }
+                } else {
+                    setErrorMessage(data.error || "Gerber upload failed.");
+                    setLoadingState("error");
+                }
+            })
+            .catch((err: any) => {
+                console.error("Upload fetch error:", err);
+                setErrorMessage(err.message || "Network or server connection failed.");
+                setLoadingState("error");
+            });
+    };
+
+    const resetUploader = () => {
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+        setFile(null);
+        setProgress(0);
+        setLoadingState("idle");
+        setErrorMessage(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        onReset();
+    };
+
+    return (
+        <div className="w-full">
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip,.rar"
+                onChange={handleFileChange}
+                className="hidden"
+            />
+
+            {loadingState === "success" ? null : (
+                <div
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    className={`relative rounded-xl text-center transition-all duration-300 ${loadingState === "uploading"
+                            ? "bg-primary/5"
+                            : dragActive
+                                ? "border border-dashed border-primary bg-primary/10 scale-[1.005] py-14 px-6"
+                                : loadingState === "error"
+                                    ? "border border-dashed border-red-300 bg-red-50/10 py-12 px-6"
+                                    : "border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 py-14 px-6"
+                        }`}
+                >
+                    {loadingState === "idle" && (
+                        <div className="flex flex-col items-center justify-center">
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="bg-primary hover:opacity-90 text-white font-bold text-base px-8 py-3 rounded-full shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                            >
+                                <Upload className="w-5 h-5" /> Add gerber file
+                            </button>
+                            <p className="mt-4 text-xs sm:text-sm text-gray-400 font-medium">
+                                Only accept zip or rar, Max 100 MB
+                            </p>
+                            <p className="mt-2 text-xs sm:text-sm text-gray-400 font-medium flex items-center justify-center gap-1.5">
+                                <span className="text-sm">🔒</span> All uploads are secure and confidential.
+                            </p>
+                        </div>
+                    )}
+
+                    {loadingState === "uploading" && (
+                        <div className="bg-primary/5 rounded-xl p-10 sm:p-14 flex flex-col items-center justify-center space-y-6">
+                            <p className="text-gray-700 font-medium text-sm sm:text-base tracking-wide flex items-center gap-2">
+                                <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+                                Uploading gerber files...
+                            </p>
+                            <div className="w-full max-w-xl flex items-center gap-4">
+                                <div className="flex-1 bg-gray-200/70 h-4 sm:h-5 rounded-full overflow-hidden">
+                                    <div
+                                        className="bg-primary h-full rounded-full transition-all duration-300 shadow-sm"
+                                        style={{ width: `${progress}%` }}
+                                    />
+                                </div>
+                                <span className="text-primary font-bold text-lg sm:text-2xl shrink-0 min-w-[55px] text-right">
+                                    {progress}%
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {loadingState === "error" && (
+                        <div className="flex flex-col items-center justify-center space-y-4 py-2">
+                            <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-500">
+                                <AlertCircle className="w-7 h-7" />
+                            </div>
+                            <div>
+                                <p className="text-base font-bold text-red-600">Verification Failed</p>
+                                <p className="text-sm text-gray-600 mt-1.5 px-6 py-2 bg-red-50 rounded-lg inline-block border border-red-100">
+                                    {errorMessage}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={resetUploader}
+                                className="text-xs font-semibold text-primary hover:underline mt-2 cursor-pointer"
+                            >
+                                Try uploading another file
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
