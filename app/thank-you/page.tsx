@@ -41,7 +41,7 @@ export default function ThankYouPage() {
                 if (Array.isArray(parsed) && parsed.length > 0) {
                     setOrdersList(parsed);
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         const savedOrder = localStorage.getItem("lastOrder");
@@ -180,7 +180,7 @@ export default function ThankYouPage() {
                                 Order Confirmation
                             </h1>
                             <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium mt-0.5">
-                                Thank you for choosing Megabyte Circuit for your PCB fabrication.
+                                Thank you for choosing Your Company for your PCB fabrication.
                             </p>
                         </div>
                     </div>

@@ -296,8 +296,8 @@ function CheckoutContent() {
             { key: "fasttrack", location: "Fasttrack", method: "Fasttrack", rate: 450 },
         ];
 
-        const foundOpt = defaultShippingOptions.find(o => 
-            o.key === item.shippingOptionKey || 
+        const foundOpt = defaultShippingOptions.find(o =>
+            o.key === item.shippingOptionKey ||
             item.shippingOption?.toLowerCase().includes(o.key) ||
             (o.key === "standard" && (item.shippingOption?.toLowerCase().includes("standard") || item.shippingOptionKey === "gujarat_road")) ||
             (o.key === "plus" && (item.shippingOption?.toLowerCase().includes("plus") || item.shippingOptionKey === "out_air" || item.shippingOptionKey === "out_road")) ||
@@ -375,7 +375,7 @@ function CheckoutContent() {
             }
 
             // 2. Configure Razorpay Checkout Modal
-            const companyName = orderData.company_name || "Megabyte Circuit";
+            const companyName = orderData.company_name || "Your Company";
             const logoUrl = orderData.company_logo || (typeof window !== "undefined" ? `${window.location.origin}/images/logo.png` : "");
 
             const options = {
@@ -513,533 +513,533 @@ function CheckoutContent() {
 
                     <div className="flex flex-col lg:flex-row gap-6">
                         <div className="flex-1 min-w-0">
-                        <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-7 shadow-2xs">
-                            {activeFormType !== "none" ? (
-                                <form onSubmit={handleSaveNewAddress} className="space-y-4">
-                                    <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-2">
-                                        <h3 className="text-sm font-extrabold text-gray-900">
-                                            {activeFormType === "billing" ? "Add New Billing Address" : "Add New Shipping Address"}
-                                        </h3>
-                                        {(savedAddresses.length > 0) && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveFormType("none")}
-                                                className="text-xs font-bold text-gray-500 hover:text-gray-700 underline cursor-pointer"
+                            <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-7 shadow-2xs">
+                                {activeFormType !== "none" ? (
+                                    <form onSubmit={handleSaveNewAddress} className="space-y-4">
+                                        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-2">
+                                            <h3 className="text-sm font-extrabold text-gray-900">
+                                                {activeFormType === "billing" ? "Add New Billing Address" : "Add New Shipping Address"}
+                                            </h3>
+                                            {(savedAddresses.length > 0) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveFormType("none")}
+                                                    className="text-xs font-bold text-gray-500 hover:text-gray-700 underline cursor-pointer"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mb-2">
+                                            <label
+                                                onClick={() => setCustomerType("company")}
+                                                className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${customerType === "company"
+                                                    ? "border-primary bg-primary/5 text-primary"
+                                                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                                                    }`}
                                             >
-                                                Cancel
-                                            </button>
+                                                <input
+                                                    type="radio"
+                                                    name="customerType"
+                                                    checked={customerType === "company"}
+                                                    onChange={() => setCustomerType("company")}
+                                                    className="accent-primary"
+                                                />
+                                                <span>Company</span>
+                                            </label>
+
+                                            <label
+                                                onClick={() => setCustomerType("individual")}
+                                                className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${customerType === "individual"
+                                                    ? "border-primary bg-primary/5 text-primary"
+                                                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="customerType"
+                                                    checked={customerType === "individual"}
+                                                    onChange={() => setCustomerType("individual")}
+                                                    className="accent-primary"
+                                                />
+                                                <span>Individual Customer</span>
+                                            </label>
+                                        </div>
+
+                                        {customerType === "company" && (
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    Company Name *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={companyName}
+                                                    onChange={(e) => setCompanyName(e.target.value)}
+                                                    placeholder="Company Name"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
                                         )}
-                                    </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mb-2">
-                                        <label
-                                            onClick={() => setCustomerType("company")}
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${customerType === "company"
-                                                ? "border-primary bg-primary/5 text-primary"
-                                                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                                                }`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="customerType"
-                                                checked={customerType === "company"}
-                                                onChange={() => setCustomerType("company")}
-                                                className="accent-primary"
-                                            />
-                                            <span>Company</span>
-                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * First Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={firstName}
+                                                    onChange={(e) => setFirstName(e.target.value)}
+                                                    placeholder="First Name"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
 
-                                        <label
-                                            onClick={() => setCustomerType("individual")}
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${customerType === "individual"
-                                                ? "border-primary bg-primary/5 text-primary"
-                                                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                                                }`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="customerType"
-                                                checked={customerType === "individual"}
-                                                onChange={() => setCustomerType("individual")}
-                                                className="accent-primary"
-                                            />
-                                            <span>Individual Customer</span>
-                                        </label>
-                                    </div>
-
-                                    {customerType === "company" && (
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                Company Name *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={companyName}
-                                                onChange={(e) => setCompanyName(e.target.value)}
-                                                placeholder="Company Name"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
-                                        </div>
-                                    )}
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * First Name
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={firstName}
-                                                onChange={(e) => setFirstName(e.target.value)}
-                                                placeholder="First Name"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * Last Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={lastName}
+                                                    onChange={(e) => setLastName(e.target.value)}
+                                                    placeholder="Last Name"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * Last Name
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={lastName}
-                                                onChange={(e) => setLastName(e.target.value)}
-                                                placeholder="Last Name"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
-                                        </div>
-                                    </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * Country / Region
+                                                </label>
+                                                <select
+                                                    value={country}
+                                                    onChange={(e) => setCountry(e.target.value)}
+                                                    className="w-full h-10 px-3 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none bg-white transition-all text-gray-700 cursor-default"
+                                                >
+                                                    <option value="India">India</option>
+                                                </select>
+                                            </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * Country / Region
-                                            </label>
-                                            <select
-                                                value={country}
-                                                onChange={(e) => setCountry(e.target.value)}
-                                                className="w-full h-10 px-3 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none bg-white transition-all text-gray-700 cursor-default"
-                                            >
-                                                <option value="India">India</option>
-                                            </select>
-                                        </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * State
+                                                </label>
+                                                <select
+                                                    required
+                                                    value={state}
+                                                    onChange={(e) => setState(e.target.value)}
+                                                    className="w-full h-10 px-3 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none bg-white transition-all text-gray-700"
+                                                >
+                                                    <option value="">Select State</option>
+                                                    {statesList.map((st) => (
+                                                        <option key={st.code} value={st.name}>
+                                                            {st.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
 
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * State
-                                            </label>
-                                            <select
-                                                required
-                                                value={state}
-                                                onChange={(e) => setState(e.target.value)}
-                                                className="w-full h-10 px-3 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none bg-white transition-all text-gray-700"
-                                            >
-                                                <option value="">Select State</option>
-                                                {statesList.map((st) => (
-                                                    <option key={st.code} value={st.name}>
-                                                        {st.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * City
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={city}
-                                                onChange={(e) => setCity(e.target.value)}
-                                                placeholder="City"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * Street Address
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={streetAddress}
-                                                onChange={(e) => setStreetAddress(e.target.value)}
-                                                placeholder="Street Address"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * City
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={city}
+                                                    onChange={(e) => setCity(e.target.value)}
+                                                    placeholder="City"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                Building/House No
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={buildingNo}
-                                                onChange={(e) => setBuildingNo(e.target.value)}
-                                                placeholder="Building/House No"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * Street Address
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={streetAddress}
+                                                    onChange={(e) => setStreetAddress(e.target.value)}
+                                                    placeholder="Street Address"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    Building/House No
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={buildingNo}
+                                                    onChange={(e) => setBuildingNo(e.target.value)}
+                                                    placeholder="Building/House No"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Postal Code & Mobile Number */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * Postal Code
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={postalCode}
-                                                onChange={(e) => setPostalCode(e.target.value)}
-                                                placeholder="Postal Code"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
+                                        {/* Postal Code & Mobile Number */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * Postal Code
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={postalCode}
+                                                    onChange={(e) => setPostalCode(e.target.value)}
+                                                    placeholder="Postal Code"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                                    * Cell/Mobile number
+                                                </label>
+                                                <input
+                                                    type="tel"
+                                                    required
+                                                    value={mobile}
+                                                    onChange={(e) => setMobile(e.target.value)}
+                                                    placeholder="Cell/Mobile number"
+                                                    className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">
-                                                * Cell/Mobile number
-                                            </label>
-                                            <input
-                                                type="tel"
-                                                required
-                                                value={mobile}
-                                                onChange={(e) => setMobile(e.target.value)}
-                                                placeholder="Cell/Mobile number"
-                                                className="w-full h-10 px-3.5 text-xs border border-gray-300 rounded-xl focus:border-primary outline-none transition-all"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-2 flex items-center gap-3">
-                                        <button
-                                            type="submit"
-                                            disabled={isSavingAddress}
-                                            className="px-6 py-2.5 rounded-full bg-primary hover:bg-secondary text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95 flex items-center gap-2"
-                                        >
-                                            {isSavingAddress ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                                            <span>Save Address</span>
-                                        </button>
-
-                                        {savedAddresses.length > 0 && (
+                                        <div className="pt-2 flex items-center gap-3">
                                             <button
-                                                type="button"
-                                                onClick={() => setActiveFormType("none")}
-                                                className="px-4 py-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-all cursor-pointer"
+                                                type="submit"
+                                                disabled={isSavingAddress}
+                                                className="px-6 py-2.5 rounded-full bg-primary hover:bg-secondary text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95 flex items-center gap-2"
                                             >
-                                                Cancel
+                                                {isSavingAddress ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                                <span>Save Address</span>
                                             </button>
-                                        )}
-                                    </div>
-                                </form>
-                            ) : (
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-extrabold text-gray-900">
-                                            Shipping Information
-                                        </h3>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                fetchStates();
-                                                setActiveFormType("shipping");
-                                            }}
-                                            className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
-                                        >
-                                            <Plus className="w-3.5 h-3.5" />
-                                            <span>Add new shipping address</span>
-                                        </button>
-                                    </div>
 
-                                    {/* Saved Shipping Address Radio List */}
-                                    {shippingAddresses.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {shippingAddresses.map((addr) => {
-                                                const isSelected = selectedShippingAddressId === addr.id;
-                                                const fullAddr = `${addr.first_name} ${addr.last_name} / ${addr.building_no ? addr.building_no + ', ' : ''}${addr.street_address}, ${addr.city}, ${addr.state}, ${addr.postal_code}, ${addr.country.toUpperCase()}, ${addr.mobile}`;
-
-                                                return (
-                                                    <label
-                                                        key={addr.id}
-                                                        onClick={() => setSelectedShippingAddressId(addr.id)}
-                                                        className={`flex items-start justify-between gap-3 p-4 rounded-xl border text-xs cursor-pointer transition-all ${isSelected
-                                                            ? "border-primary bg-primary/5 shadow-2xs"
-                                                            : "border-gray-200 bg-white hover:border-gray-300"
-                                                            }`}
-                                                    >
-                                                        <div className="flex items-start gap-3">
-                                                            <input
-                                                                type="radio"
-                                                                name="shippingAddress"
-                                                                checked={isSelected}
-                                                                onChange={() => setSelectedShippingAddressId(addr.id)}
-                                                                className="mt-0.5 accent-primary shrink-0 cursor-pointer"
-                                                            />
-                                                            <span className="font-semibold text-gray-800 leading-relaxed">
-                                                                {fullAddr}
-                                                            </span>
-                                                        </div>
-
-                                                        {Boolean(addr.is_default) && (
-                                                            <span className="px-2.5 py-1 rounded bg-gray-100 text-gray-500 text-[10px] font-extrabold uppercase shrink-0">
-                                                                DEFAULT
-                                                            </span>
-                                                        )}
-                                                    </label>
-                                                );
-                                            })}
+                                            {savedAddresses.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveFormType("none")}
+                                                    className="px-4 py-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-all cursor-pointer"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500 flex justify-between items-center">
-                                            <span>No shipping address stored.</span>
+                                    </form>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-extrabold text-gray-900">
+                                                Shipping Information
+                                            </h3>
                                             <button
                                                 type="button"
                                                 onClick={() => {
                                                     fetchStates();
                                                     setActiveFormType("shipping");
                                                 }}
-                                                className="text-primary font-bold hover:underline cursor-pointer"
-                                            >
-                                                + Add Shipping Address
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* Billing Information Section */}
-                                    <div className="pt-4 border-t border-gray-100 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="text-sm font-extrabold text-gray-900">
-                                                Billing Information
-                                            </h3>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    fetchStates();
-                                                    setActiveFormType("billing");
-                                                }}
                                                 className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
                                             >
                                                 <Plus className="w-3.5 h-3.5" />
-                                                <span>Add new billing address</span>
+                                                <span>Add new shipping address</span>
                                             </button>
                                         </div>
 
-                                        <div className="space-y-3 text-xs font-semibold text-gray-700">
-                                            <label className="flex items-center gap-2 cursor-pointer select-none">
-                                                <input
-                                                    type="radio"
-                                                    name="billingOption"
-                                                    checked={billingOption === "same"}
-                                                    onChange={() => setBillingOption("same")}
-                                                    className="accent-primary cursor-pointer"
-                                                />
-                                                <span>Same as shipping address</span>
-                                            </label>
+                                        {/* Saved Shipping Address Radio List */}
+                                        {shippingAddresses.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {shippingAddresses.map((addr) => {
+                                                    const isSelected = selectedShippingAddressId === addr.id;
+                                                    const fullAddr = `${addr.first_name} ${addr.last_name} / ${addr.building_no ? addr.building_no + ', ' : ''}${addr.street_address}, ${addr.city}, ${addr.state}, ${addr.postal_code}, ${addr.country.toUpperCase()}, ${addr.mobile}`;
 
-                                            <label className="flex items-center gap-2 cursor-pointer select-none">
-                                                <input
-                                                    type="radio"
-                                                    name="billingOption"
-                                                    checked={billingOption === "choose"}
-                                                    onChange={handleSelectChooseBilling}
-                                                    className="accent-primary cursor-pointer"
-                                                />
-                                                <span>Choose Billing Address</span>
-                                            </label>
-                                        </div>
-
-                                        {/* Billing Address Radio Selection List when "Choose Billing Address" is active */}
-                                        {billingOption === "choose" && (
-                                            billingAddresses.length > 0 ? (
-                                                <div className="space-y-3 pt-2">
-                                                    {billingAddresses.map((bAddr) => {
-                                                        const isBSelected = selectedBillingAddressId === bAddr.id;
-                                                        const fullBAddr = `${bAddr.first_name} ${bAddr.last_name} / ${bAddr.building_no ? bAddr.building_no + ', ' : ''}${bAddr.street_address}, ${bAddr.city}, ${bAddr.state}, ${bAddr.postal_code}, ${bAddr.country.toUpperCase()}, ${bAddr.mobile}`;
-
-                                                        return (
-                                                            <label
-                                                                key={bAddr.id}
-                                                                onClick={() => setSelectedBillingAddressId(bAddr.id)}
-                                                                className={`flex items-start justify-between gap-3 p-4 rounded-xl border text-xs cursor-pointer transition-all ${isBSelected
-                                                                    ? "border-primary bg-primary/5 shadow-2xs"
-                                                                    : "border-gray-200 bg-white hover:border-gray-300"
-                                                                    }`}
-                                                            >
-                                                                <div className="flex items-start gap-3">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="billingAddressRadio"
-                                                                        checked={isBSelected}
-                                                                        onChange={() => setSelectedBillingAddressId(bAddr.id)}
-                                                                        className="mt-0.5 accent-primary shrink-0 cursor-pointer"
-                                                                    />
-                                                                    <span className="font-semibold text-gray-800 leading-relaxed">
-                                                                        {fullBAddr}
-                                                                    </span>
-                                                                </div>
-                                                                {Boolean(bAddr.is_default) && (
-                                                                    <span className="px-2.5 py-1 rounded bg-gray-100 text-gray-500 text-[10px] font-extrabold uppercase shrink-0">
-                                                                        DEFAULT
-                                                                    </span>
-                                                                )}
-                                                            </label>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500 flex justify-between items-center mt-2">
-                                                    <span>No billing address stored.</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            fetchStates();
-                                                            setActiveFormType("billing");
-                                                        }}
-                                                        className="text-primary font-bold hover:underline cursor-pointer"
-                                                    >
-                                                        + Add Billing Address
-                                                    </button>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right Column: SUMMARY Sidebar */}
-                    <div className="w-full lg:w-80 shrink-0">
-                        <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 space-y-5 sticky top-20 shadow-xs">
-                            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                                <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider">
-                                    SUMMARY
-                                </h2>
-                                <span className="text-xs font-semibold text-primary">
-                                    {cartItems.length} items
-                                </span>
-                            </div>
-
-                            {/* Product Breakdown with Exact Part Image / Gerber Preview & Delivery Details */}
-                            <div className="space-y-3 border-b border-gray-100 pb-4">
-                                <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider">
-                                    PRODUCT BREAKDOWN
-                                </h3>
-                                <div className="space-y-3 max-h-64 overflow-y-auto pr-1 scrollbar-thin">
-                                    {effectiveCartItems.map((item, idx) => (
-                                        <div key={item.id || idx} className="space-y-1.5 border-b border-gray-50 pb-2.5 last:border-0 last:pb-0">
-                                            <div className="flex items-start gap-3 text-xs">
-                                                {/* Image Box matching Cart Page */}
-                                                <div className="w-12 h-12 bg-white rounded-lg border border-gray-200/90 flex items-center justify-center p-1 overflow-hidden shrink-0 relative">
-                                                    {item.productType === "part" ? (
-                                                        <img
-                                                            src={item.photoUrl || "https://mm.digikey.com/Volume0/opasdata/d220001/medias/images/7182/MFG_RMCF_series.jpg"}
-                                                            alt={item.boardName || item.partNumber || "Part"}
-                                                            className="w-full h-full object-contain"
-                                                            onError={(e) => {
-                                                                (e.target as HTMLElement).setAttribute(
-                                                                    "src",
-                                                                    "https://mm.digikey.com/Volume0/opasdata/d220001/medias/images/7182/MFG_RMCF_series.jpg"
-                                                                );
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <GerberBoardPreview
-                                                            previewData={item.gerberPreview}
-                                                            gerberFileId={(item as any).gerber_file_id || (item as any).uploadedGerberFileId}
-                                                            boardName={item.gerberFileName || item.boardName}
-                                                            pcbColor={item.pcbColor}
-                                                            layers={item.layers}
-                                                        />
-                                                    )}
-                                                </div>
-
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-start justify-between gap-1">
-                                                        <p className="font-extrabold text-gray-800 leading-snug truncate max-w-[130px]">
-                                                            {item.boardName || item.partNumber || item.gerberFileName || (item.productType === "stencil" ? "SMT Stencil" : "Standard PCB")}
-                                                        </p>
-                                                        <span className="font-extrabold text-gray-900 shrink-0">
-                                                            {formatPrice(item.price)}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-[10px] text-gray-500 font-medium mt-0.5">
-                                                        Qty: {item.qty} {item.productType === "part" ? "| Part" : `| ${item.layers || '2'} Layer | ${item.pcbColor || "Green"}`}
-                                                    </p>
-                                                    {item.shippingOption && (
-                                                        <div className="mt-1 bg-blue-50/80 border border-blue-100/80 rounded p-1 text-[10px] text-blue-900 leading-tight">
-                                                            <div className="font-bold flex items-center justify-between">
-                                                                <span>🚚 {item.shippingOption}</span>
-                                                                <span className="font-extrabold text-primary">{formatPrice(item.shippingCharge || 0)}</span>
+                                                    return (
+                                                        <label
+                                                            key={addr.id}
+                                                            onClick={() => setSelectedShippingAddressId(addr.id)}
+                                                            className={`flex items-start justify-between gap-3 p-4 rounded-xl border text-xs cursor-pointer transition-all ${isSelected
+                                                                ? "border-primary bg-primary/5 shadow-2xs"
+                                                                : "border-gray-200 bg-white hover:border-gray-300"
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-start gap-3">
+                                                                <input
+                                                                    type="radio"
+                                                                    name="shippingAddress"
+                                                                    checked={isSelected}
+                                                                    onChange={() => setSelectedShippingAddressId(addr.id)}
+                                                                    className="mt-0.5 accent-primary shrink-0 cursor-pointer"
+                                                                />
+                                                                <span className="font-semibold text-gray-800 leading-relaxed">
+                                                                    {fullAddr}
+                                                                </span>
                                                             </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
 
-                            {/* Requirement 6: Removed Merchandise Total line, directly display Grand Total */}
-                            <div className="space-y-3 text-xs">
-                                <div className="flex justify-between text-base font-black text-gray-900">
-                                    <span>Grand Total</span>
-                                    <span className="text-primary text-xl font-extrabold">
-                                        {formatPrice(grandTotal)}
+                                                            {Boolean(addr.is_default) && (
+                                                                <span className="px-2.5 py-1 rounded bg-gray-100 text-gray-500 text-[10px] font-extrabold uppercase shrink-0">
+                                                                    DEFAULT
+                                                                </span>
+                                                            )}
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500 flex justify-between items-center">
+                                                <span>No shipping address stored.</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        fetchStates();
+                                                        setActiveFormType("shipping");
+                                                    }}
+                                                    className="text-primary font-bold hover:underline cursor-pointer"
+                                                >
+                                                    + Add Shipping Address
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Billing Information Section */}
+                                        <div className="pt-4 border-t border-gray-100 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="text-sm font-extrabold text-gray-900">
+                                                    Billing Information
+                                                </h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        fetchStates();
+                                                        setActiveFormType("billing");
+                                                    }}
+                                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                    <span>Add new billing address</span>
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-3 text-xs font-semibold text-gray-700">
+                                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                                    <input
+                                                        type="radio"
+                                                        name="billingOption"
+                                                        checked={billingOption === "same"}
+                                                        onChange={() => setBillingOption("same")}
+                                                        className="accent-primary cursor-pointer"
+                                                    />
+                                                    <span>Same as shipping address</span>
+                                                </label>
+
+                                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                                    <input
+                                                        type="radio"
+                                                        name="billingOption"
+                                                        checked={billingOption === "choose"}
+                                                        onChange={handleSelectChooseBilling}
+                                                        className="accent-primary cursor-pointer"
+                                                    />
+                                                    <span>Choose Billing Address</span>
+                                                </label>
+                                            </div>
+
+                                            {/* Billing Address Radio Selection List when "Choose Billing Address" is active */}
+                                            {billingOption === "choose" && (
+                                                billingAddresses.length > 0 ? (
+                                                    <div className="space-y-3 pt-2">
+                                                        {billingAddresses.map((bAddr) => {
+                                                            const isBSelected = selectedBillingAddressId === bAddr.id;
+                                                            const fullBAddr = `${bAddr.first_name} ${bAddr.last_name} / ${bAddr.building_no ? bAddr.building_no + ', ' : ''}${bAddr.street_address}, ${bAddr.city}, ${bAddr.state}, ${bAddr.postal_code}, ${bAddr.country.toUpperCase()}, ${bAddr.mobile}`;
+
+                                                            return (
+                                                                <label
+                                                                    key={bAddr.id}
+                                                                    onClick={() => setSelectedBillingAddressId(bAddr.id)}
+                                                                    className={`flex items-start justify-between gap-3 p-4 rounded-xl border text-xs cursor-pointer transition-all ${isBSelected
+                                                                        ? "border-primary bg-primary/5 shadow-2xs"
+                                                                        : "border-gray-200 bg-white hover:border-gray-300"
+                                                                        }`}
+                                                                >
+                                                                    <div className="flex items-start gap-3">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="billingAddressRadio"
+                                                                            checked={isBSelected}
+                                                                            onChange={() => setSelectedBillingAddressId(bAddr.id)}
+                                                                            className="mt-0.5 accent-primary shrink-0 cursor-pointer"
+                                                                        />
+                                                                        <span className="font-semibold text-gray-800 leading-relaxed">
+                                                                            {fullBAddr}
+                                                                        </span>
+                                                                    </div>
+                                                                    {Boolean(bAddr.is_default) && (
+                                                                        <span className="px-2.5 py-1 rounded bg-gray-100 text-gray-500 text-[10px] font-extrabold uppercase shrink-0">
+                                                                            DEFAULT
+                                                                        </span>
+                                                                    )}
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500 flex justify-between items-center mt-2">
+                                                        <span>No billing address stored.</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                fetchStates();
+                                                                setActiveFormType("billing");
+                                                            }}
+                                                            className="text-primary font-bold hover:underline cursor-pointer"
+                                                        >
+                                                            + Add Billing Address
+                                                        </button>
+                                                    </div>
+                                                )
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Right Column: SUMMARY Sidebar */}
+                        <div className="w-full lg:w-80 shrink-0">
+                            <div className="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 space-y-5 sticky top-20 shadow-xs">
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                    <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider">
+                                        SUMMARY
+                                    </h2>
+                                    <span className="text-xs font-semibold text-primary">
+                                        {cartItems.length} items
                                     </span>
                                 </div>
-                            </div>
 
-                            {/* Requirement 4 & 5: Continue to Payment Button */}
-                            <div>
-                                <button
-                                    type="button"
-                                    onClick={handlePayNowWithRazorpay}
-                                    disabled={!isReadyToPay || isProcessingPayment}
-                                    className={`w-full py-3.5 rounded-full font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${isReadyToPay && !isProcessingPayment
-                                        ? "bg-primary hover:bg-secondary text-white active:scale-98"
-                                        : "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
-                                        }`}
-                                >
-                                    {isProcessingPayment ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                    ) : (
-                                        <>
-                                            <ShieldCheck className="w-4 h-4" />
-                                            <span>
-                                                {isReadyToPay
-                                                    ? "Continue to Payment"
-                                                    : !selectedShippingAddressId
-                                                        ? "Select Shipping Address"
-                                                        : "Select Billing Address"}
-                                            </span>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                                {/* Product Breakdown with Exact Part Image / Gerber Preview & Delivery Details */}
+                                <div className="space-y-3 border-b border-gray-100 pb-4">
+                                    <h3 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider">
+                                        PRODUCT BREAKDOWN
+                                    </h3>
+                                    <div className="space-y-3 max-h-64 overflow-y-auto pr-1 scrollbar-thin">
+                                        {effectiveCartItems.map((item, idx) => (
+                                            <div key={item.id || idx} className="space-y-1.5 border-b border-gray-50 pb-2.5 last:border-0 last:pb-0">
+                                                <div className="flex items-start gap-3 text-xs">
+                                                    {/* Image Box matching Cart Page */}
+                                                    <div className="w-12 h-12 bg-white rounded-lg border border-gray-200/90 flex items-center justify-center p-1 overflow-hidden shrink-0 relative">
+                                                        {item.productType === "part" ? (
+                                                            <img
+                                                                src={item.photoUrl || "https://mm.digikey.com/Volume0/opasdata/d220001/medias/images/7182/MFG_RMCF_series.jpg"}
+                                                                alt={item.boardName || item.partNumber || "Part"}
+                                                                className="w-full h-full object-contain"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLElement).setAttribute(
+                                                                        "src",
+                                                                        "https://mm.digikey.com/Volume0/opasdata/d220001/medias/images/7182/MFG_RMCF_series.jpg"
+                                                                    );
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <GerberBoardPreview
+                                                                previewData={item.gerberPreview}
+                                                                gerberFileId={(item as any).gerber_file_id || (item as any).uploadedGerberFileId}
+                                                                boardName={item.gerberFileName || item.boardName}
+                                                                pcbColor={item.pcbColor}
+                                                                layers={item.layers}
+                                                            />
+                                                        )}
+                                                    </div>
 
-                            <div className="pt-2 text-[10px] text-gray-400 text-center font-medium space-y-1">
-                                <p>Secured by <strong>Razorpay</strong></p>
-                                <p>Orders will be split per item with individual tracking IDs.</p>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-start justify-between gap-1">
+                                                            <p className="font-extrabold text-gray-800 leading-snug truncate max-w-[130px]">
+                                                                {item.boardName || item.partNumber || item.gerberFileName || (item.productType === "stencil" ? "SMT Stencil" : "Standard PCB")}
+                                                            </p>
+                                                            <span className="font-extrabold text-gray-900 shrink-0">
+                                                                {formatPrice(item.price)}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                                                            Qty: {item.qty} {item.productType === "part" ? "| Part" : `| ${item.layers || '2'} Layer | ${item.pcbColor || "Green"}`}
+                                                        </p>
+                                                        {item.shippingOption && (
+                                                            <div className="mt-1 bg-blue-50/80 border border-blue-100/80 rounded p-1 text-[10px] text-blue-900 leading-tight">
+                                                                <div className="font-bold flex items-center justify-between">
+                                                                    <span>🚚 {item.shippingOption}</span>
+                                                                    <span className="font-extrabold text-primary">{formatPrice(item.shippingCharge || 0)}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Requirement 6: Removed Merchandise Total line, directly display Grand Total */}
+                                <div className="space-y-3 text-xs">
+                                    <div className="flex justify-between text-base font-black text-gray-900">
+                                        <span>Grand Total</span>
+                                        <span className="text-primary text-xl font-extrabold">
+                                            {formatPrice(grandTotal)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Requirement 4 & 5: Continue to Payment Button */}
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={handlePayNowWithRazorpay}
+                                        disabled={!isReadyToPay || isProcessingPayment}
+                                        className={`w-full py-3.5 rounded-full font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${isReadyToPay && !isProcessingPayment
+                                            ? "bg-primary hover:bg-secondary text-white active:scale-98"
+                                            : "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
+                                            }`}
+                                    >
+                                        {isProcessingPayment ? (
+                                            <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                        ) : (
+                                            <>
+                                                <ShieldCheck className="w-4 h-4" />
+                                                <span>
+                                                    {isReadyToPay
+                                                        ? "Continue to Payment"
+                                                        : !selectedShippingAddressId
+                                                            ? "Select Shipping Address"
+                                                            : "Select Billing Address"}
+                                                </span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                <div className="pt-2 text-[10px] text-gray-400 text-center font-medium space-y-1">
+                                    <p>Secured by <strong>Razorpay</strong></p>
+                                    <p>Orders will be split per item with individual tracking IDs.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </main>
+                </main>
 
-            {/* Theme Footer */}
-            <Footer />
+                {/* Theme Footer */}
+                <Footer />
             </div>
         </div>
     );

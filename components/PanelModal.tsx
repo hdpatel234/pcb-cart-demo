@@ -85,15 +85,15 @@ export const PanelModal: React.FC<PanelModalProps> = ({
     return (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row border border-slate-200 max-h-[90vh]">
-                
+
                 {/* Left Side: Form Controls */}
                 <div className="w-full md:w-1/2 p-6 overflow-y-auto space-y-4">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                        <h3 className="text-lg font-bold text-slate-800">Panel by Megabyte Circuit</h3>
+                        <h3 className="text-lg font-bold text-slate-800">Panel by Your Company</h3>
                     </div>
 
                     <form onSubmit={handleFormSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
-                        
+
                         {/* Size (Single piece) */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
                             <span className="w-full sm:w-32 shrink-0 text-slate-600">Size(Single piece)</span>

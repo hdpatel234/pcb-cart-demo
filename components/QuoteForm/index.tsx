@@ -563,13 +563,13 @@ export default function QuoteForm({
                             </ConfigRow>
 
                             <ConfigRow label="Delivery Format" tooltip="Single PCB vs Panelized by Customer or Manufacturer.">
-                                {["Single PCB", "Panel by Customer", "Panel by Megabyte Circuit"].map(d => (
+                                {["Single PCB", "Panel by Customer", "Panel by Your Company"].map(d => (
                                     <Pill
                                         key={d}
                                         active={(formData.deliveryFormat || "Single PCB") === d}
                                         onClick={() => {
                                             updateField("deliveryFormat", d);
-                                            if (d === "Panel by Megabyte Circuit") {
+                                            if (d === "Panel by Your Company") {
                                                 setPanelModalOpen(true);
                                             }
                                         }}
@@ -605,7 +605,7 @@ export default function QuoteForm({
                                             </div>
                                         </div>
                                         <p className="text-xs text-red-500 font-medium">
-                                            *You supply the panel data. If need us to panelize your board, pls select &quot;Panel by Megabyte Circuit&quot; option.
+                                            *You supply the panel data. If need us to panelize your board, pls select &quot;Panel by Your Company&quot; option.
                                         </p>
                                     </div>
                                 </ConfigRow>
@@ -615,48 +615,48 @@ export default function QuoteForm({
 
                             {/* PCB Thickness - Dynamic options for Flex vs Others */}
                             <ConfigRow label="PCB Thickness">
-                                 {(formData.baseMaterial === "Flex"
-                                     ? (formData.substrateType === "Transparent"
-                                         ? (formData.layers === "1"
-                                             ? [{ val: "0.14mm", disabled: false }]
-                                             : [{ val: "0.24mm", disabled: false }]
-                                           )
-                                         : formData.substrateType === "50µm dielectric thickness"
-                                             ? (formData.layers === "1"
-                                                 ? [{ val: "0.07mm", disabled: true }, { val: "0.12mm", disabled: false }]
-                                                 : formData.layers === "4"
-                                                     ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
-                                                     : [{ val: "0.11mm", disabled: true }, { val: "0.12mm", disabled: true }, { val: "0.19mm", disabled: false }, { val: "0.2mm", disabled: false }]
-                                               )
-                                             : (formData.layers === "1"
-                                                 ? [{ val: "0.07mm", disabled: false }, { val: "0.11mm", disabled: false }]
-                                                 : formData.layers === "4"
-                                                     ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
-                                                     : [{ val: "0.11mm", disabled: false }, { val: "0.12mm", disabled: false }, { val: "0.2mm", disabled: false }]
-                                               )
-                                       )
-                                     : formData.baseMaterial === "Rogers"
-                                         ? ["0.51mm", "0.76mm", "1.52mm"].map(v => ({ val: v, disabled: false }))
-                                         : formData.baseMaterial === "PTFE Teflon"
-                                             ? ["0.76mm", "1.52mm"].map(v => ({ val: v, disabled: false }))
-                                             : ["0.6mm", "0.8mm", "1.0mm", "1.2mm", "1.6mm", "2.0mm"].map(v => ({ val: v, disabled: false }))
-                                 ).map(item => (
-                                     <Pill
-                                         key={item.val}
-                                         disabled={item.disabled}
-                                         active={formData.thickness === item.val}
-                                         onClick={() => updateField("thickness", item.val)}
-                                     >
-                                         {item.val}
-                                     </Pill>
-                                 ))}
-                             </ConfigRow>
+                                {(formData.baseMaterial === "Flex"
+                                    ? (formData.substrateType === "Transparent"
+                                        ? (formData.layers === "1"
+                                            ? [{ val: "0.14mm", disabled: false }]
+                                            : [{ val: "0.24mm", disabled: false }]
+                                        )
+                                        : formData.substrateType === "50µm dielectric thickness"
+                                            ? (formData.layers === "1"
+                                                ? [{ val: "0.07mm", disabled: true }, { val: "0.12mm", disabled: false }]
+                                                : formData.layers === "4"
+                                                    ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
+                                                    : [{ val: "0.11mm", disabled: true }, { val: "0.12mm", disabled: true }, { val: "0.19mm", disabled: false }, { val: "0.2mm", disabled: false }]
+                                            )
+                                            : (formData.layers === "1"
+                                                ? [{ val: "0.07mm", disabled: false }, { val: "0.11mm", disabled: false }]
+                                                : formData.layers === "4"
+                                                    ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
+                                                    : [{ val: "0.11mm", disabled: false }, { val: "0.12mm", disabled: false }, { val: "0.2mm", disabled: false }]
+                                            )
+                                    )
+                                    : formData.baseMaterial === "Rogers"
+                                        ? ["0.51mm", "0.76mm", "1.52mm"].map(v => ({ val: v, disabled: false }))
+                                        : formData.baseMaterial === "PTFE Teflon"
+                                            ? ["0.76mm", "1.52mm"].map(v => ({ val: v, disabled: false }))
+                                            : ["0.6mm", "0.8mm", "1.0mm", "1.2mm", "1.6mm", "2.0mm"].map(v => ({ val: v, disabled: false }))
+                                ).map(item => (
+                                    <Pill
+                                        key={item.val}
+                                        disabled={item.disabled}
+                                        active={formData.thickness === item.val}
+                                        onClick={() => updateField("thickness", item.val)}
+                                    >
+                                        {item.val}
+                                    </Pill>
+                                ))}
+                            </ConfigRow>
 
                             {/* Coverlay Color for Flex vs PCB Color for FR-4/Rogers/PTFE */}
                             {formData.baseMaterial === "Flex" ? (
                                 <ConfigRow label="Coverlay Color">
                                     {formData.substrateType === "Transparent" ? (
-                                        <Pill active={true} onClick={() => {}}>
+                                        <Pill active={true} onClick={() => { }}>
                                             Transparent
                                         </Pill>
                                     ) : (
@@ -775,7 +775,7 @@ export default function QuoteForm({
                                             { val: "ENIG", disabled: false },
                                             { val: "HASL(with lead)", disabled: true },
                                             { val: "LeadFree HASL", disabled: true }
-                                          ]
+                                        ]
                                         : parseInt(formData.layers, 10) >= 6
                                             ? [
                                                 { val: "ENIG", disabled: false },
@@ -783,13 +783,13 @@ export default function QuoteForm({
                                                 { val: "OSP", disabled: false },
                                                 { val: "HASL(Leaded)", disabled: true },
                                                 { val: "HASL(with lead)", disabled: true }
-                                              ]
+                                            ]
                                             : [
                                                 { val: "HASL(Leaded)", disabled: false },
                                                 { val: "LeadFree HASL", disabled: false },
                                                 { val: "ENIG", disabled: false },
                                                 { val: "OSP", disabled: false }
-                                              ]
+                                            ]
                                 ).map(item => (
                                     <Pill
                                         key={item.val}
@@ -1211,18 +1211,18 @@ export default function QuoteForm({
                 </div> */}
 
 
-            <PanelModal
-                isOpen={panelModalOpen}
-                onClose={() => setPanelModalOpen(false)}
-                onSubmit={(data) => {
-                    updateField("panelColumn", data.panelColumn);
-                    updateField("panelRow", data.panelRow);
-                }}
-                singleWidth={formData.width}
-                singleHeight={formData.height}
-                initialColumn={formData.panelColumn}
-                initialRow={formData.panelRow}
-            />
+                <PanelModal
+                    isOpen={panelModalOpen}
+                    onClose={() => setPanelModalOpen(false)}
+                    onSubmit={(data) => {
+                        updateField("panelColumn", data.panelColumn);
+                        updateField("panelRow", data.panelRow);
+                    }}
+                    singleWidth={formData.width}
+                    singleHeight={formData.height}
+                    initialColumn={formData.panelColumn}
+                    initialRow={formData.panelRow}
+                />
             </div>
         </TooltipProvider>
     );

@@ -88,7 +88,7 @@ export default function Header() {
             if (actionUrl) {
                 window.location.href = actionUrl;
             }
-        } catch (e) {}
+        } catch (e) { }
     };
 
     const handleMarkAllAsRead = async () => {
@@ -100,7 +100,7 @@ export default function Header() {
                 body: JSON.stringify({ user_id: currentUser?.id })
             });
             fetchNotifications();
-        } catch (e) {}
+        } catch (e) { }
     };
 
     useEffect(() => {
@@ -130,7 +130,7 @@ export default function Header() {
                             }
                         });
                     }
-                } catch (e) {}
+                } catch (e) { }
             };
 
             const pollInterval = setInterval(fetchNotifications, 15000);
@@ -248,7 +248,7 @@ export default function Header() {
                             <a href={process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com"} className="flex items-center gap-2 group shrink-0">
                                 <img
                                     src="/images/logo.png"
-                                    alt="Megabyte Circuit Logo"
+                                    alt="Your Company Logo"
                                     className="h-8 sm:h-10 w-auto object-contain transition-transform group-hover:scale-[1.02] dark:brightness-0 dark:invert"
                                 />
                             </a>
@@ -278,14 +278,12 @@ export default function Header() {
                                     title={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
                                 >
                                     <Sun
-                                        className={`w-4 h-4 absolute transition-all duration-300 ${
-                                            isDarkMode ? "opacity-0 rotate-90 scale-0 text-amber-400" : "opacity-100 rotate-0 scale-100 text-gray-700"
-                                        }`}
+                                        className={`w-4 h-4 absolute transition-all duration-300 ${isDarkMode ? "opacity-0 rotate-90 scale-0 text-amber-400" : "opacity-100 rotate-0 scale-100 text-gray-700"
+                                            }`}
                                     />
                                     <Moon
-                                        className={`w-4 h-4 transition-all duration-300 ${
-                                            isDarkMode ? "opacity-100 rotate-0 scale-100 text-emerald-400" : "opacity-0 -rotate-90 scale-0 text-gray-700"
-                                        }`}
+                                        className={`w-4 h-4 transition-all duration-300 ${isDarkMode ? "opacity-100 rotate-0 scale-100 text-emerald-400" : "opacity-0 -rotate-90 scale-0 text-gray-700"
+                                            }`}
                                     />
                                 </button>
 

@@ -518,7 +518,7 @@ export default function PCBQuote() {
                 <div className="max-w-[1400px] mx-auto px-4 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <a href={process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com"} className="flex items-center gap-2 group">
-                            <img src="/images/logo.png" alt="Megabyte Circuit Logo" className="h-18 w-auto object-contain" />
+                            <img src="/images/logo.png" alt="Your Company Logo" className="h-18 w-auto object-contain" />
                         </a>
                     </div>
 
@@ -884,13 +884,13 @@ export default function PCBQuote() {
                                         </ConfigRow>
 
                                         <ConfigRow label="Delivery Format">
-                                            {["Single PCB", "Panel by Customer", "Panel by Megabyte Circuit"].map(d => (
+                                            {["Single PCB", "Panel by Customer", "Panel by Your Company"].map(d => (
                                                 <Pill
                                                     key={d}
                                                     active={deliveryFormat === d}
                                                     onClick={() => {
                                                         setDeliveryFormat(d);
-                                                        if (d === "Panel by Megabyte Circuit") {
+                                                        if (d === "Panel by Your Company") {
                                                             setPanelModalOpen(true);
                                                         }
                                                     }}
@@ -926,7 +926,7 @@ export default function PCBQuote() {
                                                         </div>
                                                     </div>
                                                     <p className="text-xs text-red-500 font-medium">
-                                                        *You supply the panel data. If need us to panelize your board, pls select &quot;Panel by Megabyte Circuit&quot; option.
+                                                        *You supply the panel data. If need us to panelize your board, pls select &quot;Panel by Your Company&quot; option.
                                                     </p>
                                                 </div>
                                             </ConfigRow>
@@ -938,21 +938,21 @@ export default function PCBQuote() {
                                                     ? (layers === "1"
                                                         ? [{ val: "0.14mm", disabled: false }]
                                                         : [{ val: "0.24mm", disabled: false }]
-                                                      )
+                                                    )
                                                     : substrateType === "50µm dielectric thickness"
                                                         ? (layers === "1"
                                                             ? [{ val: "0.07mm", disabled: true }, { val: "0.12mm", disabled: false }]
                                                             : layers === "4"
                                                                 ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
                                                                 : [{ val: "0.11mm", disabled: true }, { val: "0.12mm", disabled: true }, { val: "0.19mm", disabled: false }, { val: "0.2mm", disabled: false }]
-                                                          )
+                                                        )
                                                         : (layers === "1"
                                                             ? [{ val: "0.07mm", disabled: false }, { val: "0.11mm", disabled: false }]
                                                             : layers === "4"
                                                                 ? [{ val: "0.2mm", disabled: false }, { val: "0.25mm", disabled: false }, { val: "0.3mm", disabled: false }, { val: "0.35mm", disabled: false }, { val: "0.4mm", disabled: true }, { val: "0.45mm", disabled: true }]
                                                                 : [{ val: "0.11mm", disabled: false }, { val: "0.12mm", disabled: false }, { val: "0.2mm", disabled: false }]
-                                                          )
-                                                  )
+                                                        )
+                                                )
                                                 : ["0.6mm", "0.8mm", "1.0mm", "1.2mm", "1.6mm", "2.0mm"].map(v => ({ val: v, disabled: false }))
                                             ).map(item => (
                                                 <Pill key={item.val} disabled={item.disabled} active={thickness === item.val} onClick={() => setThickness(item.val)}>{item.val}</Pill>
@@ -962,7 +962,7 @@ export default function PCBQuote() {
                                         {baseMaterial === "Flex" ? (
                                             <ConfigRow label="Coverlay Color">
                                                 {substrateType === "Transparent" ? (
-                                                    <Pill active={true} onClick={() => {}}>Transparent</Pill>
+                                                    <Pill active={true} onClick={() => { }}>Transparent</Pill>
                                                 ) : (
                                                     <div className="flex gap-3">
                                                         <ColorCircle color="#fadb14" active={pcbColor === "#fadb14"} onClick={() => setPcbColor("#fadb14")} />
@@ -1010,7 +1010,7 @@ export default function PCBQuote() {
                                                             "ZYF300CA-C(Dk=2.94,Df=0.0016)",
                                                             "ZYF265D(Dk=2.65,Df=0.0019)",
                                                             "ZYF255DA(Dk=2.55,Df=0.0018)"
-                                                          ]
+                                                        ]
                                                         : ["FR4 TG135", "KB6164 - TG135", "Nan Ya NP-140F", "S1141 TG140", "S1000H TG155"]
                                                 ).map(m => (
                                                     <Pill key={m} active={materialType === m || (m === "FR4 TG135" && materialType === "FR4-TG135")} onClick={() => setMaterialType(m)}>{m}</Pill>
@@ -1027,13 +1027,13 @@ export default function PCBQuote() {
                                                         { val: "ENIG", disabled: false },
                                                         { val: "HASL(with lead)", disabled: true },
                                                         { val: "LeadFree HASL", disabled: true }
-                                                      ]
+                                                    ]
                                                     : [
                                                         { val: "OSP", disabled: false },
                                                         { val: "HASL(Leaded)", disabled: false },
                                                         { val: "LeadFree HASL", disabled: false },
                                                         { val: "ENIG", disabled: false }
-                                                      ]
+                                                    ]
                                             ).map(item => (
                                                 <Pill key={item.val} disabled={item.disabled} active={surfaceFinish === item.val} onClick={() => setSurfaceFinish(item.val)} activeColor="blue">{item.val}</Pill>
                                             ))}
@@ -1042,7 +1042,7 @@ export default function PCBQuote() {
                                         {(surfaceFinish === "ENIG" || baseMaterial === "Flex") && (
                                             <ConfigRow label="Gold Thickness">
                                                 {["1 U\"", "2 U\""].map(gt => (
-                                                    <Pill key={gt} active={true} onClick={() => {}}>{gt}</Pill>
+                                                    <Pill key={gt} active={true} onClick={() => { }}>{gt}</Pill>
                                                 ))}
                                             </ConfigRow>
                                         )}
@@ -1318,7 +1318,7 @@ export default function PCBQuote() {
                         </div>
                         <div className="lg:col-span-3 flex flex-col items-start lg:items-end">
                             <div className="flex items-center gap-2 mb-6">
-                                <img src="/images/logo.png" alt="Megabyte Circuit Logo" className="h-24 w-auto object-contain brightness-0 invert" />
+                                <img src="/images/logo.png" alt="Your Company Logo" className="h-24 w-auto object-contain brightness-0 invert" />
                             </div>
                             <p className="text-sm leading-relaxed mb-2 max-w-sm lg:text-right text-gray-400">
                                 India's trusted PCB manufacturing partner delivering precision-engineered boards for startups, engineers, and enterprises.
@@ -1330,7 +1330,7 @@ export default function PCBQuote() {
                     </div>
 
                     <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-                        <div>© {new Date().getFullYear()} Megabyte Circuit. All Rights Reserved.</div>
+                        <div>© {new Date().getFullYear()} Your Company. All Rights Reserved.</div>
                         <div className="flex gap-6">
                             <a href={`${mainSiteUrl}/privacy-policy`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Privacy Policy</a>
                             <a href={`${mainSiteUrl}/terms-of-service`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Terms & Conditions</a>
