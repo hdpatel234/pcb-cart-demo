@@ -21,8 +21,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Online PCB Instant Quote - Megabyte Circuits",
-    description: "Get instant online PCB quotes from Megabyte Circuits",
+    title: "Online PCB Instant Quote - Your Company",
+    description: "Get instant online PCB quotes from Your Company",
 };
 
 export default function RootLayout({

@@ -269,7 +269,7 @@ function ForgotPasswordContent() {
                         <Link href="/" className="inline-block">
                             <img
                                 src="/images/logo.png"
-                                alt="Megabyte Circuits"
+                                alt="Your Company"
                                 className="h-10 w-auto object-contain cursor-pointer hover:opacity-90 transition-opacity"
                             />
                         </Link>

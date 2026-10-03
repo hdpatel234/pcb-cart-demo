@@ -160,7 +160,7 @@ export default function NotificationsPage() {
                                 onClick={async () => {
                                     const success = await showBrowserNotification({
                                         title: "Test User Notification",
-                                        message: "This is a test notification from Megabyte Circuits Notification Center.",
+                                        message: "This is a test notification from Your Company Notification Center.",
                                         action_url: "/notifications"
                                     });
                                     if (success) {

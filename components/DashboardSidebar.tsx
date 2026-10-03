@@ -163,7 +163,7 @@ export default function DashboardSidebar() {
                 <Link href="/" onClick={closeMobileSidebar} className="flex items-center gap-2">
                     <img
                         src="/images/logo.png"
-                        alt="Megabyte Circuits"
+                        alt="Your Company"
                         className="h-9 sm:h-10 w-auto object-contain brightness-0 invert"
                     />
                 </Link>

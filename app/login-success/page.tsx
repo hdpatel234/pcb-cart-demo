@@ -132,7 +132,7 @@ function LoginSuccessContent() {
                     <Link href="/">
                         <img
                             src="/images/logo.png"
-                            alt="Megabyte Circuits"
+                            alt="Your Company"
                             className="h-10 w-auto object-contain hover:opacity-90 transition-opacity"
                         />
                     </Link>

@@ -257,7 +257,7 @@ export default function Header() {
                                 <a href="/" className="lg:hidden shrink-0 flex items-center gap-1.5">
                                     <img
                                         src="/images/logo.png"
-                                        alt="Megabyte Circuits"
+                                        alt="Your Company"
                                         className="h-7 w-auto object-contain dark:brightness-0 dark:invert"
                                     />
                                 </a>

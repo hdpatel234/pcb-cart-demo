@@ -319,7 +319,7 @@ const PCBPreviewCanvas = ({
 
             // Large logo/label
             ctx.font = "bold 12px Inter, system-ui, sans-serif";
-            ctx.fillText("MEGABYTE CIRCUITS", icX - 65, icY - 95);
+            ctx.fillText("Your Company", icX - 65, icY - 95);
 
             ctx.beginPath();
             ctx.moveTo(icX - 65, icY - 90);
