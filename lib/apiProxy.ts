@@ -26,7 +26,7 @@ export async function handleApiProxy(
         }
 
         const clientAuthHeader = req.headers.get("Authorization");
-        const cookieToken = req.cookies.get("megabyte_user_token")?.value;
+        const cookieToken = req.cookies.get("company_user_token")?.value;
         const clientAuth = clientAuthHeader || (cookieToken ? `Bearer ${cookieToken}` : null);
         const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "";
 
@@ -83,7 +83,7 @@ export async function handleApiProxy(
         }
 
         // Call backend API
-        let apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://localhost/megabyte-circuits-api/public";
+        let apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://localhost/company-circuits-api/public";
         if (apiUrl.endsWith("/")) {
             apiUrl = apiUrl.slice(0, -1);
         }

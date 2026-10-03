@@ -76,7 +76,7 @@ function AccountContent() {
     const fetchAccountData = async () => {
         try {
             const currentUser = getAuthUser();
-            const token = localStorage.getItem("megabyte_user_token");
+            const token = localStorage.getItem("company_user_token");
 
             if (!token || !currentUser) {
                 router.push("/login?redirect=/account");
@@ -146,10 +146,10 @@ function AccountContent() {
             const data = await res.json();
 
             if (res.ok && data.status && data.user) {
-                const token = localStorage.getItem("megabyte_user_token") || "";
+                const token = localStorage.getItem("company_user_token") || "";
                 setUser(data.user);
                 setAuthSession(data.user, token);
-                window.dispatchEvent(new Event("megabyte_auth_updated"));
+                window.dispatchEvent(new Event("company_auth_updated"));
 
                 toast({
                     title: "Profile Updated",
@@ -216,10 +216,10 @@ function AccountContent() {
             const data = await res.json();
 
             if (res.ok && data.status && data.user) {
-                const token = localStorage.getItem("megabyte_user_token") || "";
+                const token = localStorage.getItem("company_user_token") || "";
                 setUser(data.user);
                 setAuthSession(data.user, token);
-                window.dispatchEvent(new Event("megabyte_auth_updated"));
+                window.dispatchEvent(new Event("company_auth_updated"));
 
                 toast({
                     title: "Success",
@@ -255,10 +255,10 @@ function AccountContent() {
             const data = await res.json();
 
             if (res.ok && data.status && data.user) {
-                const token = localStorage.getItem("megabyte_user_token") || "";
+                const token = localStorage.getItem("company_user_token") || "";
                 setUser(data.user);
                 setAuthSession(data.user, token);
-                window.dispatchEvent(new Event("megabyte_auth_updated"));
+                window.dispatchEvent(new Event("company_auth_updated"));
 
                 toast({
                     title: "Success",

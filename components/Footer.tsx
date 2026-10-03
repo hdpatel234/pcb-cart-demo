@@ -10,8 +10,8 @@ export default function Footer() {
     useEffect(() => {
         const checkAuth = () => {
             try {
-                const token = getAuthToken() || localStorage.getItem("megabyte_user_token");
-                const user = getAuthUser() || localStorage.getItem("megabyte_user");
+                const token = getAuthToken() || localStorage.getItem("company_user_token");
+                const user = getAuthUser() || localStorage.getItem("company_user");
                 setIsLoggedIn(Boolean(token && user));
             } catch (e) {
                 setIsLoggedIn(false);
@@ -21,10 +21,10 @@ export default function Footer() {
         };
 
         checkAuth();
-        window.addEventListener("megabyte_auth_updated", checkAuth);
+        window.addEventListener("company_auth_updated", checkAuth);
         window.addEventListener("storage", checkAuth);
         return () => {
-            window.removeEventListener("megabyte_auth_updated", checkAuth);
+            window.removeEventListener("company_auth_updated", checkAuth);
             window.removeEventListener("storage", checkAuth);
         };
     }, []);

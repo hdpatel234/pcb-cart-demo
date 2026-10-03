@@ -38,7 +38,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
 
     const loadCart = () => {
         try {
-            const savedCart = localStorage.getItem("megabyte_cart");
+            const savedCart = localStorage.getItem("company_cart");
             if (savedCart) {
                 setCartItems(JSON.parse(savedCart));
             } else {
@@ -57,10 +57,10 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
 
     useEffect(() => {
         const handleCartUpdate = () => loadCart();
-        window.addEventListener("megabyte_cart_updated", handleCartUpdate);
+        window.addEventListener("company_cart_updated", handleCartUpdate);
         window.addEventListener("storage", handleCartUpdate);
         return () => {
-            window.removeEventListener("megabyte_cart_updated", handleCartUpdate);
+            window.removeEventListener("company_cart_updated", handleCartUpdate);
             window.removeEventListener("storage", handleCartUpdate);
         };
     }, []);

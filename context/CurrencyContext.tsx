@@ -52,7 +52,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     useEffect(() => {
-        const savedCurrency = localStorage.getItem("megabyte_currency");
+        const savedCurrency = localStorage.getItem("company_currency");
         if (savedCurrency && (DEFAULT_RATES[savedCurrency] !== undefined || SYMBOLS[savedCurrency] !== undefined)) {
             setCurrencyState(savedCurrency);
         }
@@ -61,7 +61,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const setCurrency = (code: string) => {
         setCurrencyState(code);
         try {
-            localStorage.setItem("megabyte_currency", code);
+            localStorage.setItem("company_currency", code);
         } catch (e) {
             console.error("Failed to save currency to localStorage", e);
         }

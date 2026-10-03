@@ -24,7 +24,7 @@ export default function Header() {
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     useEffect(() => {
-        const savedTheme = localStorage.getItem("megabyte_theme");
+        const savedTheme = localStorage.getItem("company_theme");
         if (savedTheme === "dark") {
             setIsDarkMode(true);
             document.documentElement.classList.add("dark");
@@ -39,10 +39,10 @@ export default function Header() {
         setIsDarkMode(nextMode);
         if (nextMode) {
             document.documentElement.classList.add("dark");
-            localStorage.setItem("megabyte_theme", "dark");
+            localStorage.setItem("company_theme", "dark");
         } else {
             document.documentElement.classList.remove("dark");
-            localStorage.setItem("megabyte_theme", "light");
+            localStorage.setItem("company_theme", "light");
         }
     };
     const [cartCount, setCartCount] = useState(0);
@@ -144,7 +144,7 @@ export default function Header() {
 
     const updateCartCount = () => {
         try {
-            const savedCart = localStorage.getItem("megabyte_cart");
+            const savedCart = localStorage.getItem("company_cart");
             if (savedCart) {
                 const items = JSON.parse(savedCart);
                 setCartCount(Array.isArray(items) ? items.length : 0);
@@ -172,11 +172,11 @@ export default function Header() {
             console.error("Logout API call error:", e);
         } finally {
             clearAuthSession();
-            localStorage.removeItem("megabyte_checkout_items");
+            localStorage.removeItem("company_checkout_items");
             localStorage.removeItem("selectedCartItemIds");
             setUser(null);
             setIsAccountOpen(false);
-            window.dispatchEvent(new Event("megabyte_auth_updated"));
+            window.dispatchEvent(new Event("company_auth_updated"));
             window.location.href = "/";
         }
     };
@@ -204,14 +204,14 @@ export default function Header() {
             }
         };
 
-        window.addEventListener("megabyte_cart_updated", handleCartUpdate);
-        window.addEventListener("megabyte_auth_updated", handleAuthUpdate);
+        window.addEventListener("company_cart_updated", handleCartUpdate);
+        window.addEventListener("company_auth_updated", handleAuthUpdate);
         window.addEventListener("storage", handleCartUpdate);
         window.addEventListener("storage", handleAuthUpdate);
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
-            window.removeEventListener("megabyte_cart_updated", handleCartUpdate);
-            window.removeEventListener("megabyte_auth_updated", handleAuthUpdate);
+            window.removeEventListener("company_cart_updated", handleCartUpdate);
+            window.removeEventListener("company_auth_updated", handleAuthUpdate);
             window.removeEventListener("storage", handleCartUpdate);
             window.removeEventListener("storage", handleAuthUpdate);
             document.removeEventListener("mousedown", handleClickOutside);

@@ -7,8 +7,8 @@ export async function executeRepeatOrder(
         const numId = Number(ordId);
         if (setLoadingId) setLoadingId(numId);
 
-        const savedUser = typeof window !== "undefined" ? localStorage.getItem("megabyte_user") : null;
-        const token = typeof window !== "undefined" ? localStorage.getItem("megabyte_user_token") : null;
+        const savedUser = typeof window !== "undefined" ? localStorage.getItem("company_user") : null;
+        const token = typeof window !== "undefined" ? localStorage.getItem("company_user_token") : null;
         const userObj = savedUser ? JSON.parse(savedUser) : null;
 
         if (!userObj?.id) {
@@ -40,7 +40,7 @@ export async function executeRepeatOrder(
         const newCartItem = data.cart_item;
 
         // 2. Load current local cart & add new reorder item
-        const savedCart = localStorage.getItem("megabyte_cart");
+        const savedCart = localStorage.getItem("company_cart");
         let cartItems = savedCart ? JSON.parse(savedCart) : [];
 
         // Check if item with same ID already in cart or append
@@ -52,13 +52,13 @@ export async function executeRepeatOrder(
         }
 
         // 3. Save updated cart to localStorage & sync with backend /api/cart/save
-        localStorage.setItem("megabyte_cart", JSON.stringify(cartItems));
+        localStorage.setItem("company_cart", JSON.stringify(cartItems));
         localStorage.setItem("selectedCartItemIds", JSON.stringify([newCartItem.id]));
 
-        let sessionId = localStorage.getItem("megabyte_session_id");
+        let sessionId = localStorage.getItem("company_session_id");
         if (!sessionId) {
             sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-            localStorage.setItem("megabyte_session_id", sessionId);
+            localStorage.setItem("company_session_id", sessionId);
         }
 
         try {
@@ -75,7 +75,7 @@ export async function executeRepeatOrder(
         }
 
         // 4. Dispatch cart update event & redirect to Cart
-        window.dispatchEvent(new Event("megabyte_cart_updated"));
+        window.dispatchEvent(new Event("company_cart_updated"));
         router.push("/cart");
 
     } catch (err: any) {

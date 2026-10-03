@@ -46,8 +46,8 @@ function GerberFilesContent() {
     useEffect(() => {
         const fetchFiles = async () => {
             try {
-                const savedUser = localStorage.getItem("megabyte_user");
-                const token = localStorage.getItem("megabyte_user_token");
+                const savedUser = localStorage.getItem("company_user");
+                const token = localStorage.getItem("company_user_token");
 
                 if (!token || !savedUser) {
                     router.push("/login?redirect=/gerber-files");

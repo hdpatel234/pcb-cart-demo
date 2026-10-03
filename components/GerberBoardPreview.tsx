@@ -188,7 +188,7 @@ export default function GerberBoardPreview({
                 U1
             </text>
             <text x="100" y="109" fill={theme.silk} fontSize="6" fontWeight="bold" textAnchor="middle" opacity="0.7">
-                MEGABYTE PCB
+                company PCB
             </text>
 
             {/* Board Title Silkscreen */}

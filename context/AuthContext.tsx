@@ -201,7 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
 
-        const channel = new BroadcastChannel("megabyte_auth_channel");
+        const channel = new BroadcastChannel("company_auth_channel");
         broadcastChannelRef.current = channel;
 
         channel.onmessage = (event) => {

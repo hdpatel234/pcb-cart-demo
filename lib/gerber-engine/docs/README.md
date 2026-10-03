@@ -1,4 +1,4 @@
-# @megabyte/gerber-engine & @megabyte/gerber-viewer
+# @company/gerber-engine & @company/gerber-viewer
 
 A production-ready, client-side **Gerber Parser, Geometry Engine, Excellon Drill Parser, PCB Analysis Engine, and SVG Viewer Package** built for React and Next.js applications.
 

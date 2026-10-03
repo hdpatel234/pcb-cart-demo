@@ -60,16 +60,16 @@ function LoginSuccessContent() {
                 }
 
                 setAuthSession(token, userObj);
-                localStorage.setItem("megabyte_user_token", token);
-                localStorage.setItem("megabyte_user", JSON.stringify(userObj));
-                window.dispatchEvent(new Event("megabyte_auth_updated"));
+                localStorage.setItem("company_user_token", token);
+                localStorage.setItem("company_user", JSON.stringify(userObj));
+                window.dispatchEvent(new Event("company_auth_updated"));
 
                 if (userObj.id) {
                     setUserId(userObj.id);
                 }
 
                 const userKey = userObj.email || userObj.id;
-                const isHandled = userKey ? localStorage.getItem(`megabyte_gst_prompt_handled_${userKey}`) : null;
+                const isHandled = userKey ? localStorage.getItem(`company_gst_prompt_handled_${userKey}`) : null;
                 const hasExistingGst = Boolean((userObj as any).gst_number);
 
                 if (isHandled === "true" || hasExistingGst) {
@@ -100,10 +100,10 @@ function LoginSuccessContent() {
             // Mark prompt as handled so it is never shown again on subsequent logins
             const userKey = searchParams.get("email") || userId;
             if (userKey) {
-                localStorage.setItem(`megabyte_gst_prompt_handled_${userKey}`, "true");
+                localStorage.setItem(`company_gst_prompt_handled_${userKey}`, "true");
             }
             if (userId) {
-                localStorage.setItem(`megabyte_gst_prompt_handled_${userId}`, "true");
+                localStorage.setItem(`company_gst_prompt_handled_${userId}`, "true");
             }
 
             if (!skip && gstNumber.trim() && userId) {

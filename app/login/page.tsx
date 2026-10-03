@@ -74,7 +74,7 @@ function LoginContent() {
         }
 
         // 2. Skip login if user is already authenticated
-        const token = getAuthToken() || (typeof window !== "undefined" ? localStorage.getItem("megabyte_user_token") : null);
+        const token = getAuthToken() || (typeof window !== "undefined" ? localStorage.getItem("company_user_token") : null);
         if (token) {
             router.push(redirectUrl);
         }
@@ -148,7 +148,7 @@ function LoginContent() {
                     };
 
                     setAuthSession(token, userObj);
-                    window.dispatchEvent(new Event("megabyte_auth_updated"));
+                    window.dispatchEvent(new Event("company_auth_updated"));
 
                     setSuccessMessage("Signed in successfully!");
                     setTimeout(() => {
@@ -294,7 +294,7 @@ function LoginContent() {
                 };
 
                 setAuthSession(token, userObj);
-                window.dispatchEvent(new Event("megabyte_auth_updated"));
+                window.dispatchEvent(new Event("company_auth_updated"));
 
                 setSuccessMessage("Account created successfully! Redirecting...");
                 setTimeout(() => {
@@ -396,7 +396,7 @@ function LoginContent() {
                             </div>
                         ) : (
                             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                                {viewMode === "signin" ? "Sign in to Megabyte" : "Create Your Account"}
+                                {viewMode === "signin" ? "Sign in to company" : "Create Your Account"}
                             </h1>
                         )}
                     </div>
@@ -721,7 +721,7 @@ function LoginContent() {
                                             className="mt-0.5 rounded accent-primary shrink-0"
                                         />
                                         <span>
-                                            I agree to Megabyte&apos;s <a href={`${mainSiteUrl}/terms-of-service`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">Terms of Service</a> and <a href={`${mainSiteUrl}/privacy-policy`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">Privacy Policy</a>.
+                                            I agree to company&apos;s <a href={`${mainSiteUrl}/terms-of-service`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">Terms of Service</a> and <a href={`${mainSiteUrl}/privacy-policy`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold">Privacy Policy</a>.
                                         </span>
                                     </label>
                                     {fieldErrors.agreeTerms && (

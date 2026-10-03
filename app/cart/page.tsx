@@ -191,7 +191,7 @@ export default function CartPage() {
             if (saveBackendTimerRef.current) {
                 clearTimeout(saveBackendTimerRef.current);
                 saveBackendTimerRef.current = null;
-                const savedCart = typeof window !== "undefined" ? localStorage.getItem("megabyte_cart") : null;
+                const savedCart = typeof window !== "undefined" ? localStorage.getItem("company_cart") : null;
                 if (savedCart) {
                     try {
                         const items = JSON.parse(savedCart);
@@ -212,7 +212,7 @@ export default function CartPage() {
                         setCartSessionId(urlSessionId);
                     }
                 }
-                const savedCart = localStorage.getItem("megabyte_cart");
+                const savedCart = localStorage.getItem("company_cart");
                 let items: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
                 const backendItems = await loadCartFromBackend();
                 if (Array.isArray(backendItems)) {
@@ -305,8 +305,8 @@ export default function CartPage() {
 
     const saveCart = async (items: CartItem[], immediate: boolean = false) => {
         setCartItems(items);
-        safeSetStorage("megabyte_cart", items);
-        window.dispatchEvent(new Event("megabyte_cart_updated"));
+        safeSetStorage("company_cart", items);
+        window.dispatchEvent(new Event("company_cart_updated"));
 
         if (saveBackendTimerRef.current) {
             clearTimeout(saveBackendTimerRef.current);
@@ -786,9 +786,9 @@ export default function CartPage() {
         }
 
         // Store ONLY checked items for checkout processing safely without heavy SVGs
-        safeSetStorage("megabyte_checkout_items", selectedCartItemsList);
+        safeSetStorage("company_checkout_items", selectedCartItemsList);
 
-        const userToken = typeof window !== "undefined" ? (localStorage.getItem("megabyte_user_token") || localStorage.getItem("megabyte_user")) : null;
+        const userToken = typeof window !== "undefined" ? (localStorage.getItem("company_user_token") || localStorage.getItem("company_user")) : null;
         if (!userToken) {
             router.push("/login?redirect=/checkout");
             return;
@@ -831,7 +831,7 @@ export default function CartPage() {
                                 <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200/80">
                                     <div className="flex items-center gap-6 overflow-x-auto text-xs sm:text-sm font-semibold text-gray-600 select-none">
                                         {/* <button type="button" onClick={() => setActiveTab("all")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "all" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>All ({cartItems.length})</button> */}
-                                        <button type="button" onClick={() => setActiveTab("pcb")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "pcb" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>Megabyte PCB ({pcbCount})</button>
+                                        <button type="button" onClick={() => setActiveTab("pcb")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "pcb" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>company PCB ({pcbCount})</button>
                                         <button type="button" onClick={() => setActiveTab("part")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "part" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>Parts ({partCount})</button>
                                         {stencilCount > 0 && (
                                             <button type="button" onClick={() => setActiveTab("stencil")} className={`pb-1 transition-colors cursor-pointer whitespace-nowrap ${activeTab === "stencil" ? "text-primary border-b-2 border-primary font-bold" : "hover:text-gray-900"}`}>SMT Stencil ({stencilCount})</button>

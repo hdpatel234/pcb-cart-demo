@@ -32,7 +32,7 @@ export default function DashboardSidebar() {
     const [counts, setCounts] = useState<SidebarCounts>(() => {
         if (typeof window !== "undefined") {
             try {
-                const cached = localStorage.getItem("megabyte_sidebar_counts");
+                const cached = localStorage.getItem("company_sidebar_counts");
                 if (cached) return JSON.parse(cached);
             } catch (e) {}
         }
@@ -41,8 +41,8 @@ export default function DashboardSidebar() {
 
     useEffect(() => {
         try {
-            const token = getAuthToken() || localStorage.getItem("megabyte_user_token");
-            const savedUser = getAuthUser() || localStorage.getItem("megabyte_user");
+            const token = getAuthToken() || localStorage.getItem("company_user_token");
+            const savedUser = getAuthUser() || localStorage.getItem("company_user");
             if (token && savedUser) {
                 setIsLoggedIn(true);
                 const userObj = typeof savedUser === "string" ? JSON.parse(savedUser) : savedUser;
@@ -53,7 +53,7 @@ export default function DashboardSidebar() {
                             if (data.status && data.counts) {
                                 setCounts(data.counts);
                                 try {
-                                    localStorage.setItem("megabyte_sidebar_counts", JSON.stringify(data.counts));
+                                    localStorage.setItem("company_sidebar_counts", JSON.stringify(data.counts));
                                 } catch (e) {}
                             }
                         })
@@ -128,7 +128,7 @@ export default function DashboardSidebar() {
         try {
             if (impSession && impSession.active) {
                 const token = getAuthToken();
-                const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/megabyte-circuits/megabyte-circuits-api/public";
+                const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/company-circuits/company-circuits-api/public";
                 const backendUrl = rawBackendUrl.replace(/\/+$/, "");
                 await fetch(`${backendUrl}/api/auth/impersonation/stop`, {
                     method: "POST",
@@ -143,9 +143,9 @@ export default function DashboardSidebar() {
         } finally {
             const wasImpersonating = impSession && impSession.active;
             clearAuthSession();
-            localStorage.removeItem("megabyte_checkout_items");
+            localStorage.removeItem("company_checkout_items");
             localStorage.removeItem("selectedCartItemIds");
-            window.dispatchEvent(new Event("megabyte_auth_updated"));
+            window.dispatchEvent(new Event("company_auth_updated"));
 
             if (wasImpersonating) {
                 const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3000/clients";

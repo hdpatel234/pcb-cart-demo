@@ -154,8 +154,8 @@ function CheckoutContent() {
         const initCheckout = async () => {
             try {
                 // Check User Session
-                const savedUser = localStorage.getItem("megabyte_user");
-                const token = localStorage.getItem("megabyte_user_token");
+                const savedUser = localStorage.getItem("company_user");
+                const token = localStorage.getItem("company_user_token");
 
                 if (!token || !savedUser) {
                     router.push("/login?redirect=/checkout");
@@ -177,14 +177,14 @@ function CheckoutContent() {
                 }
 
                 // Load Cart Items (Prioritize explicitly checked items for checkout)
-                const savedCheckoutItems = localStorage.getItem("megabyte_checkout_items") || sessionStorage.getItem("megabyte_checkout_items");
+                const savedCheckoutItems = localStorage.getItem("company_checkout_items") || sessionStorage.getItem("company_checkout_items");
                 if (savedCheckoutItems) {
                     const parsed = JSON.parse(savedCheckoutItems);
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         setCartItems(parsed);
                     }
                 } else {
-                    const savedCart = localStorage.getItem("megabyte_cart") || sessionStorage.getItem("megabyte_cart");
+                    const savedCart = localStorage.getItem("company_cart") || sessionStorage.getItem("company_cart");
                     if (savedCart) {
                         setCartItems(JSON.parse(savedCart));
                     }
@@ -416,20 +416,20 @@ function CheckoutContent() {
 
                         if (verifyData.status) {
                             // Remove ONLY the purchased items from full cart
-                            const savedCartStr = localStorage.getItem("megabyte_cart");
+                            const savedCartStr = localStorage.getItem("company_cart");
                             if (savedCartStr) {
                                 const fullCartItems: CartItem[] = JSON.parse(savedCartStr);
                                 const purchasedIds = new Set(cartItems.map((item) => item.id));
                                 const remainingItems = fullCartItems.filter((item) => !purchasedIds.has(item.id));
 
-                                localStorage.setItem("megabyte_cart", JSON.stringify(remainingItems));
+                                localStorage.setItem("company_cart", JSON.stringify(remainingItems));
                                 await saveCartToBackend(remainingItems);
                             } else {
-                                localStorage.removeItem("megabyte_cart");
+                                localStorage.removeItem("company_cart");
                                 await saveCartToBackend([]);
                             }
-                            localStorage.removeItem("megabyte_checkout_items");
-                            window.dispatchEvent(new Event("megabyte_cart_updated"));
+                            localStorage.removeItem("company_checkout_items");
+                            window.dispatchEvent(new Event("company_cart_updated"));
 
                             // Save order numbers for Thank You page
                             sessionStorage.setItem("latest_orders", JSON.stringify(verifyData.orders || []));

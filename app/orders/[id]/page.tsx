@@ -38,7 +38,7 @@ interface OrderLog {
 function formatClientLogDescription(description?: string): string {
     if (!description) return "";
     let cleaned = description;
-    // Strip prefixes containing employee or admin names (e.g. "Updated by Megabyte Admin: ", "Quantities updated by John: ")
+    // Strip prefixes containing employee or admin names (e.g. "Updated by company Admin: ", "Quantities updated by John: ")
     cleaned = cleaned.replace(/^(?:Updated|Quantities updated|Status updated|Details updated|Changed|Modified|Created|Edited)\s+by\s+[^:\n]+[:\-]\s*/i, "");
     cleaned = cleaned.replace(/^By\s+[^:\n]+[:\-]\s*/i, "");
     cleaned = cleaned.replace(/^Updated by\s+[^:\n]+[:\-]?\s*/i, "");
@@ -207,8 +207,8 @@ function OrderDetailsContent({ orderId }: { orderId: string }) {
     useEffect(() => {
         const fetchOrder = async () => {
             try {
-                const savedUser = localStorage.getItem("megabyte_user");
-                const token = localStorage.getItem("megabyte_user_token");
+                const savedUser = localStorage.getItem("company_user");
+                const token = localStorage.getItem("company_user_token");
 
                 if (!token || !savedUser) {
                     router.push(`/login?redirect=/orders/${orderId}`);

@@ -557,7 +557,7 @@ export default function PCBSpecification({ selectedProduct = "pcb", isLoggedIn =
     React.useEffect(() => {
         if (typeof window === "undefined") return;
         try {
-            const rawSpec = sessionStorage.getItem("megabyte_reorder_spec") || localStorage.getItem("megabyte_reorder_spec");
+            const rawSpec = sessionStorage.getItem("company_reorder_spec") || localStorage.getItem("company_reorder_spec");
             if (rawSpec) {
                 const spec = JSON.parse(rawSpec);
                 const updates: Partial<QuoteFormData> = {};
@@ -602,8 +602,8 @@ export default function PCBSpecification({ selectedProduct = "pcb", isLoggedIn =
                     }
                 }
 
-                sessionStorage.removeItem("megabyte_reorder_spec");
-                localStorage.removeItem("megabyte_reorder_spec");
+                sessionStorage.removeItem("company_reorder_spec");
+                localStorage.removeItem("company_reorder_spec");
             }
         } catch (e) {
             console.error("Error restoring reorder specification:", e);
@@ -1412,7 +1412,7 @@ export default function PCBSpecification({ selectedProduct = "pcb", isLoggedIn =
     const handleSaveToCart = async () => {
         setIsSavingCart(true);
         try {
-            const savedCart = localStorage.getItem("megabyte_cart");
+            const savedCart = localStorage.getItem("company_cart");
             const existingCart = savedCart ? JSON.parse(savedCart) : [];
             const calculatedPrice = getCalculatedOrderPrice(selectedDay);
 

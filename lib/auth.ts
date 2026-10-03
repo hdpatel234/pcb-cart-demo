@@ -1,8 +1,8 @@
 "use client";
 
-const TOKEN_COOKIE_NAME = "megabyte_user_token";
-const USER_COOKIE_NAME = "megabyte_user";
-const LOGOUT_REASON_KEY = "megabyte_logout_reason";
+const TOKEN_COOKIE_NAME = "company_user_token";
+const USER_COOKIE_NAME = "company_user";
+const LOGOUT_REASON_KEY = "company_logout_reason";
 const COOKIE_MAX_AGE_DAYS = 30;
 
 export function getCookie(name: string): string | null {
@@ -63,7 +63,7 @@ export function setAuthSession(token: string, user: any) {
     }
 }
 
-const IMPERSONATION_KEY = "megabyte_impersonation";
+const IMPERSONATION_KEY = "company_impersonation";
 
 export function setImpersonationSession(data: { active: boolean; admin_id?: number | string; admin_name?: string; session_id?: number | string; expires_at?: string }) {
     if (typeof localStorage !== "undefined") {
@@ -96,11 +96,11 @@ export function clearAuthSession() {
     if (typeof localStorage !== "undefined") {
         localStorage.removeItem(TOKEN_COOKIE_NAME);
         localStorage.removeItem(USER_COOKIE_NAME);
-        localStorage.removeItem("megabyte_dashboard_metrics");
-        localStorage.removeItem("megabyte_sidebar_counts");
-        localStorage.removeItem("megabyte_recent_orders");
-        localStorage.removeItem("megabyte_recent_payments");
-        localStorage.removeItem("megabyte_cart_items");
+        localStorage.removeItem("company_dashboard_metrics");
+        localStorage.removeItem("company_sidebar_counts");
+        localStorage.removeItem("company_recent_orders");
+        localStorage.removeItem("company_recent_payments");
+        localStorage.removeItem("company_cart_items");
     }
 }
 

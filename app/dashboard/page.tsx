@@ -80,7 +80,7 @@ function DashboardContent() {
     const [metrics, setMetrics] = useState<{ total_orders: number; pending_orders: number; gerber_files_count: number; total_spent: number }>(() => {
         if (typeof window !== "undefined") {
             try {
-                const cached = localStorage.getItem("megabyte_dashboard_metrics");
+                const cached = localStorage.getItem("company_dashboard_metrics");
                 if (cached) return JSON.parse(cached);
             } catch (e) { }
         }
@@ -98,8 +98,8 @@ function DashboardContent() {
     useEffect(() => {
         const fetchOverview = async () => {
             try {
-                const savedUser = localStorage.getItem("megabyte_user");
-                const token = localStorage.getItem("megabyte_user_token");
+                const savedUser = localStorage.getItem("company_user");
+                const token = localStorage.getItem("company_user_token");
 
                 if (!token || !savedUser) {
                     router.push("/login?redirect=/dashboard");
@@ -117,7 +117,7 @@ function DashboardContent() {
                         setRecentOrders(data.recent_orders || []);
                         setRecentPayments(data.recent_payments || []);
                         try {
-                            localStorage.setItem("megabyte_dashboard_metrics", JSON.stringify(data.metrics || {}));
+                            localStorage.setItem("company_dashboard_metrics", JSON.stringify(data.metrics || {}));
                         } catch (e) { }
                     }
                 }

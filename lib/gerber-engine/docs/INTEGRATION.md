@@ -1,6 +1,6 @@
 # Integration Guide: Adding Gerber Engine to Next.js PCB Online Quotation
 
-This document details how the `@megabyte/gerber-engine` and `@megabyte/gerber-viewer` packages are integrated into the Next.js online quotation workflow.
+This document details how the `@company/gerber-engine` and `@company/gerber-viewer` packages are integrated into the Next.js online quotation workflow.
 
 ## Data Flow Pipeline
 

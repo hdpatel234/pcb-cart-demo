@@ -27,7 +27,7 @@ export default function ImpersonationBanner() {
         // Also query /api/auth/me if logged in to be 100% sure of backend impersonation state
         const token = getAuthToken();
         if (token) {
-            const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/megabyte-circuits/megabyte-circuits-api/public";
+            const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/company-circuits/company-circuits-api/public";
             const backendUrl = rawBackendUrl.replace(/\/+$/, "");
             fetch(`${backendUrl}/api/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -38,12 +38,12 @@ export default function ImpersonationBanner() {
                         if (data.impersonation && data.impersonation.active) {
                             setImpersonation(data.impersonation);
                             if (typeof localStorage !== "undefined") {
-                                localStorage.setItem("megabyte_impersonation", JSON.stringify(data.impersonation));
+                                localStorage.setItem("company_impersonation", JSON.stringify(data.impersonation));
                             }
                         } else {
                             // If backend says not impersonating, clear local impersonation flag
                             if (typeof localStorage !== "undefined") {
-                                localStorage.removeItem("megabyte_impersonation");
+                                localStorage.removeItem("company_impersonation");
                             }
                             setImpersonation(null);
                         }
@@ -60,11 +60,11 @@ export default function ImpersonationBanner() {
         }
 
         const handleAuthUpdate = () => checkImpersonationState();
-        window.addEventListener("megabyte_auth_updated", handleAuthUpdate);
+        window.addEventListener("company_auth_updated", handleAuthUpdate);
         window.addEventListener("storage", handleAuthUpdate);
 
         return () => {
-            window.removeEventListener("megabyte_auth_updated", handleAuthUpdate);
+            window.removeEventListener("company_auth_updated", handleAuthUpdate);
             window.removeEventListener("storage", handleAuthUpdate);
         };
     }, []);
@@ -74,13 +74,13 @@ export default function ImpersonationBanner() {
     }
 
     const clientDisplayName = user?.name || user?.email || "Client";
-    const adminDisplayName = impersonation.admin_name || "Megabyte Admin";
+    const adminDisplayName = impersonation.admin_name || "company Admin";
 
     const handleReturnToAdmin = async () => {
         setStopping(true);
         try {
             const token = getAuthToken();
-            const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/megabyte-circuits/megabyte-circuits-api/public";
+            const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/company-circuits/company-circuits-api/public";
             const backendUrl = rawBackendUrl.replace(/\/+$/, "");
             const res = await fetch(`${backendUrl}/api/auth/impersonation/stop`, {
                 method: "POST",

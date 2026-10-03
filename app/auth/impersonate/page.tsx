@@ -23,7 +23,7 @@ function ImpersonateHandoffContent() {
 
         const exchangeCode = async () => {
             try {
-                const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/megabyte-circuits/megabyte-circuits-api/public";
+                const rawBackendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/company-circuits/company-circuits-api/public";
                 const backendUrl = rawBackendUrl.replace(/\/+$/, "");
                 const res = await fetch(`${backendUrl}/api/auth/impersonate/exchange`, {
                     method: "POST",
@@ -70,7 +70,7 @@ function ImpersonateHandoffContent() {
                         // ignore me fetch error and use exchanged user payload
                     }
 
-                    window.dispatchEvent(new Event("megabyte_auth_updated"));
+                    window.dispatchEvent(new Event("company_auth_updated"));
                     setStatus("success");
                     setMessage(`Logged in as client: ${userObj.name || userObj.email}`);
 
