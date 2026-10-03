@@ -245,7 +245,7 @@ export default function Header() {
                         )}
 
                         {!user ? (
-                            <a href={process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com"} className="flex items-center gap-2 group shrink-0">
+                            <a href={process.env.NEXT_PUBLIC_MAIN_URL || ""} className="flex items-center gap-2 group shrink-0">
                                 <img
                                     src="/images/logo.png"
                                     alt="Your Company Logo"

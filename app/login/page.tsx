@@ -11,7 +11,7 @@ function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirectUrl = searchParams.get("redirect") || "/";
-    const mainSiteUrl = (process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com").replace(/\/$/, "");
+    const mainSiteUrl = (process.env.NEXT_PUBLIC_MAIN_URL || "").replace(/\/$/, "");
 
     const [viewMode, setViewMode] = useState<"signin" | "signup">("signin");
     const [signupStep, setSignupStep] = useState<"form" | "otp">("form");
@@ -372,7 +372,7 @@ function LoginContent() {
 
                     {/* Logo & Title Header */}
                     <div className="text-center sm:text-left space-y-3">
-                        <a href={process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com"} className="inline-block">
+                        <a href={process.env.NEXT_PUBLIC_MAIN_URL || ""} className="inline-block">
                             <img
                                 src="/images/logo.png"
                                 alt="Your Company"

@@ -33,7 +33,7 @@ export default function Footer() {
         return null;
     }
 
-    const mainSiteUrl = (process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com").replace(/\/$/, "");
+    const mainSiteUrl = (process.env.NEXT_PUBLIC_MAIN_URL || "").replace(/\/$/, "");
 
     return (
         <footer className="bg-[#0f1729] text-gray-300 pb-4 border-t-4 border-primary">

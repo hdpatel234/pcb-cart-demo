@@ -17,20 +17,20 @@ export default function AccountStatusModal() {
     const title = isSuspended
         ? "Account Suspended"
         : isBlocked
-        ? "Account Blocked"
-        : isPending
-        ? "Account Pending Approval"
-        : isInactive
-        ? "Account Inactive"
-        : "Account Access Restricted";
+            ? "Account Blocked"
+            : isPending
+                ? "Account Pending Approval"
+                : isInactive
+                    ? "Account Inactive"
+                    : "Account Access Restricted";
 
     const defaultMsg = isSuspended
         ? "Your account access has been suspended by the administrator. You cannot access protected areas of the application while your account is suspended. If you believe this is an error, please contact support."
         : isBlocked
-        ? "Your account has been blocked by the administrator. Please contact customer support for further assistance."
-        : isPending
-        ? "Your account is currently awaiting approval from an administrator."
-        : "Your account is inactive. Please contact support to reactivate your access.";
+            ? "Your account has been blocked by the administrator. Please contact customer support for further assistance."
+            : isPending
+                ? "Your account is currently awaiting approval from an administrator."
+                : "Your account is inactive. Please contact support to reactivate your access.";
 
     const displayMessage = statusMessage || defaultMsg;
 
@@ -39,11 +39,10 @@ export default function AccountStatusModal() {
             <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-2xl space-y-6 focus:outline-none">
                 {/* Header Icon */}
                 <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${
-                        isSuspended || isBlocked 
-                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" 
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${isSuspended || isBlocked
+                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                             : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                    }`}>
+                        }`}>
                         {isSuspended ? (
                             <ShieldAlert className="w-8 h-8" />
                         ) : isBlocked ? (
@@ -75,7 +74,7 @@ export default function AccountStatusModal() {
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
                     <a
-                        href="mailto:quote@megabytecircuit.com?subject=Account%20Access%20Inquiry"
+                        href="mailto:?subject=Account%20Access%20Inquiry"
                         className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold transition-all cursor-pointer shadow-xs"
                     >
                         <HelpCircle className="w-4 h-4 text-emerald-500" />

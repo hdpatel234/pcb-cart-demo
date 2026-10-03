@@ -346,7 +346,7 @@ const PCBPreviewCanvas = ({
 };
 
 export default function PCBQuote() {
-    const mainSiteUrl = (process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com").replace(/\/$/, "");
+    const mainSiteUrl = (process.env.NEXT_PUBLIC_MAIN_URL || "").replace(/\/$/, "");
 
     // State
     const [activeTab, setActiveTab] = useState("standard");
@@ -517,7 +517,7 @@ export default function PCBQuote() {
             <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
                 <div className="max-w-[1400px] mx-auto px-4 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <a href={process.env.NEXT_PUBLIC_MAIN_URL || "https://megabytecircuit.com"} className="flex items-center gap-2 group">
+                        <a href={process.env.NEXT_PUBLIC_MAIN_URL || ""} className="flex items-center gap-2 group">
                             <img src="/images/logo.png" alt="Your Company Logo" className="h-18 w-auto object-contain" />
                         </a>
                     </div>
